@@ -33,9 +33,12 @@ class Rescale(object):
         self.output_size = output_size
 
     def __call__(self, sample):
+        #Create copies of the variables that will be transformed from the values passed in
         image, masks = sample['image'], sample['masks']
 
         h, w = image.shape[:2]
+
+	# Veryify that the variables passed in conform to the expected format
         if isinstance(self.output_size, int):
             if h > w:
                 new_h, new_w = self.output_size * h / w, self.output_size
@@ -45,9 +48,14 @@ class Rescale(object):
             new_h, new_w = self.output_size
         new_h, new_w = int(new_h), int(new_w)
 
+	# THIS SEEMS LIKE SOMETHING THAT SHOULD BE ADDRESSED IN THE README
+	#     AND INCLUDED IN THE UTILS.PY FILE
         # if images are not resized before input then uncomment the next line
+
         # img = transform.resize(image, (new_h, new_w))
+
         msk = []
+        # Iterate over all 40 segment labels in the masks variable
         for index in range(len(masks)):
             msk.append(transform.resize(masks[index], (new_h, new_w)))
         msk = np.asarray(msk)
