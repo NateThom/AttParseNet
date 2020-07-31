@@ -31,34 +31,6 @@ def get_args():
                         default=False,
                         help='True for evaluation on the test set')
 
-    parser.add_argument('--euclidean',
-                        default=1,
-                        help='True for using euclidean loss, False otherwise [1]')
-
-    parser.add_argument('--input_width',
-                        default=178,
-                        help='Width of the input images [178]')
-
-    parser.add_argument('--input_height',
-                        default=218,
-                        help='Height of the input images [218]')
-
-    parser.add_argument('--crop_width',
-                        default=178,
-                        help='Width of cropped input images [178]')
-
-    parser.add_argument('--crop_height',
-                        default=218,
-                        help='Height of cropped input images [218]')
-
-    parser.add_argument('--col_dim',
-                        default=3,
-                        help='Color Dimensions (3 for RGB, 1 for Grayscale) [3]')
-
-    parser.add_argument('--attribute_count',
-                        default=40,
-                        help='Number of attributes (labels) [40]')
-
     parser.add_argument('--train_size',
                         default=162770,
                         help='Number of samples in training set [162770]')
@@ -94,14 +66,6 @@ def get_args():
     parser.add_argument('--lr',
                         default=0.001,
                         help='Learning rate [0.001]')
-
-    parser.add_argument('--dropout',
-                        default=True,
-                        help='True for using dropout, False otherwise [True]')
-
-    parser.add_argument('--dropout_rate',
-                        default=0.5,
-                        help='Dropout probability [0.5]')
 
     parser.add_argument('--image_path',
                         default='/home/user/Documents/input_images/',
@@ -150,15 +114,8 @@ def get_args():
             default= '/Path/To/Output/Metrics.csv',
                         help='File for saving metrics in csv format [/home/user/Documents/metrics/metric.csv]')
 
-    parser.add_argument('--model_number',
-                        default=21,
-                        help='Which saved model to load within load_path [24]')
     parser.add_argument('--save_path',
                         default='/home/nthom/Documents/learn_pytorch/attparsenet/saved_models/validation_compare',
                         help='Dir for saving models [./saved_models/]')
-
-    parser.add_argument('--gpu',
-                        default=2,
-                        help='Number gpus to run ops on [2]')
 
     return parser.parse_args()
