@@ -10,7 +10,7 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
  and facial semantic segmentation (labeling each pixel in an image where an attribute occurs). The beauty of this
  approach is that attribute prediction accuracy is increased by asking the network to tell us which attributes are 
  occurring and where they are occurring. The segmentation task is only used during training. At run time no segments are
- used. <br/><br/>
+ used. <br/>
  
 **Here's how it works:**<br/>
 <ul>
@@ -67,7 +67,7 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
 
 ![AttParseNet Architecture](https://github.com/natethom/AttParseNet/blob/master/AttParseNet.png?raw=true)
 
-**What is in this repository:**<br/><br/>
+**What is in this repository:**<br/>
 <ul>
     <li>
         attparsenet.py
@@ -77,6 +77,42 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
             </li>
             <li>
                 Reads in data, trains a new or pretrained model, tests the model
+            </li>
+        </ul>
+    </li>
+    <li>
+        attparsenet_regions.py
+        <ul>
+            <li>
+                Helper functions for forming foundational regions of the face from facial landmarks
+            </li>
+            <li>
+                These regions are used in "attparsenet_segments.py" to form the regions where each attribute occurs
+            </li>
+        </ul>
+    </li>
+    <li>
+        attparsenet_segment_labeler.py
+        <ul>
+            <li>
+                Generates and stores the attribute segment label images
+            </li>
+            <li>
+                Uses the "attparsenet_segments.py" file to form the regions where each attribute occurs on a given face
+            </li>
+        </ul>
+    </li>
+    <li>
+        attparsenet_segments.py
+        <ul>
+            <li>
+                Helper functions for forming the segments of a face where each attribute occurs
+            </li>
+            <li>
+                Uses the "attparsenet_regions.py" file to form the segments where each attribute occurs on a given face
+            </li>
+            <li>
+                These segments are used in "attparsenet_segment_labeler.py" to generate the segment label images
             </li>
         </ul>
     </li>
@@ -91,15 +127,6 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
             </li>
         </ul>
     </li>
-    <li>
-        attparsenet.py
-        <ul>
-            <li>
-                PyTorch implementation
-            </li>
-            <li>
-                Reads in data, trains a new or pretrained model, tests the model
-            </li>
-        </ul>
-    </li>
 </ul>
+
+**How to use this code:**<br/>
