@@ -1,4 +1,4 @@
-import utils
+import attparsenet_utils
 import os
 import torch
 import time
@@ -48,7 +48,7 @@ class Rescale(object):
         new_h, new_w = int(new_h), int(new_w)
 
         # THIS SEEMS LIKE SOMETHING THAT SHOULD BE ADDRESSED IN THE README
-        #     AND INCLUDED IN THE UTILS.PY FILE
+        #     AND INCLUDED IN THE ATTPARSENET_UTILS.PY FILE
         # if images are not resized before input then uncomment the next line
 
         # img = transform.resize(image, (new_h, new_w))
@@ -152,7 +152,7 @@ class AttParseNetDataset(Dataset):
     """AttParseNet dataset."""
 
     def __init__(self, args, transform=None):
-        # Save the custom arguments, which are retrieved from the utils.py file
+        # Save the custom arguments, which are retrieved from the attparsenet_utils.py file
         self.args = args
 
         # Read the binary attribute labels from the specified file
@@ -493,8 +493,8 @@ def test(net, optimizer, criterion1, criterion2, data_loader):
 
 
 def main():
-    # Get args from utils.py
-    args = utils.get_args()
+    # Get args from attparsenet_utils.py
+    args = attparsenet_utils.get_args()
 
     # Collect dataset and apply transformations
     dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((218, 178))]))
@@ -553,7 +553,7 @@ def main():
 
         loss_per_epoch = []
 
-        # Train for the number of epochs denoted in utils.py
+        # Train for the number of epochs denoted in attparsenet_utils.py
         for epoch in tqdm(range(args.train_epochs)):
             # Store the total loss over the training epoch
             epoch_loss = train(net, optimizer, criterion1, criterion2, train_loader, start_time)
