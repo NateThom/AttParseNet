@@ -5,6 +5,9 @@ Welcome to the AttParseNet code repository! This work is the result of a researc
 
 **If this work is a benefit to your own efforts, please cite our paper here:** <br/><br/>
 
+![AttParseNet Architecture](https://github.com/natethom/AttParseNet/blob/master/README_Images/AttParseNet.png?raw=true)
+Example of AttParseNet Architecture <br/><br/>
+
 AttParseNet is a simple convolutional neural network for facial attribute recognition. It is unique and novel because it
  combines the tasks of facial attribute recognition (predicting which attributes are present in a given facial image) 
  and facial semantic segmentation (labeling each pixel in an image where an attribute occurs). The beauty of this
@@ -65,9 +68,10 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
     </li>
 </ul>
 
-![AttParseNet Architecture](https://github.com/natethom/AttParseNet/blob/master/README_Images/AttParseNet.png?raw=true)
-![Facial Landmark Layout](https://github.com/natethom/AttParseNet/blob/master/README_Images/Landmarks.jpeg?raw=true)
 ![Segment Label Example](https://github.com/natethom/AttParseNet/blob/master/README_Images/Example_Segment_Label.jpg?raw=true)
+
+Example of segment label
+
 **What is in this repository:**<br/>
 <ul>
     <li>
@@ -140,3 +144,6 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
         </ul>
     </li>
 </ul>
+
+![Facial Landmark Layout](https://github.com/natethom/AttParseNet/blob/master/README_Images/Landmarks.jpeg?raw=true)
+Layout of the 68 facial landmarks
