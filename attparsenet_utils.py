@@ -3,6 +3,38 @@ import argparse
 def get_args():
     parser = argparse.ArgumentParser(description='This script loads or trains the CNN.')
 
+    parser.add_argument('--image_path',
+                        default='/home/user/Documents/input_images/',
+                        help='Path to input data directory [/home/user/Documents/input_images/]')
+
+    parser.add_argument('--attr_label_path',
+                        default='/home/user/Documents/list_attr_celeba_attparsenet.csv',
+                        help='Path to mapping between input images and binary attribute labels [/home/user/Documents/list_attr_celeba_attparsenet.csv]')
+
+    parser.add_argument('--mask_image_path',
+                        default='/home/user/Documents/attribute_segment_labels/',
+                        help='Path to segment label data [/home/user/Documents/attribute_segment_labels/]')
+
+    parser.add_argument('--mask_label_path',
+                        default='/home/user/Documents/segment_labels.csv',
+                        help='Path to mapping between input images and segment labels= [home/Documents/segment_labels.csv]')
+
+    parser.add_argument('--load_path',
+                        default='/home/user/Documents/models/model_to_load',
+                        help='File path for the model to load [/home/user/Document/models/model_to_load]')
+
+    parser.add_argument('--metrics_output_path',
+                        default='/Path/To/Output/Metrics.txt',
+                        help='File for saving metrics [/home/user/Documents/metrics/metric.txt]')
+
+    parser.add_argument('--metrics_csv_output_path',
+                        default='/Path/To/Output/Metrics.csv',
+                        help='File for saving metrics in csv format [/home/user/Documents/metrics/metric.csv]')
+
+    parser.add_argument('--save_path',
+                        default='/home/nthom/Documents/learn_pytorch/attparsenet/saved_models/validation_compare',
+                        help='Dir for saving models [./saved_models/]')
+
     parser.add_argument('--load',
                         default=False,
                         help='True for loading a pretrained model, False otherwise [0]')
@@ -67,13 +99,13 @@ def get_args():
                         default=0.001,
                         help='Learning rate [0.001]')
 
-    parser.add_argument('--image_path',
-                        default='/home/user/Documents/input_images/',
-                        help='Path to input data directory [/home/user/Documents/input_images/]')
+    parser.add_argument('--plot_loss',
+                        default=False,
+                        help='If True, plot loss curve across all epochs [False]')
 
-    parser.add_argument('--attr_label_path',
-                        default='/home/user/Documents/list_attr_celeba_attparsenet.csv',
-                        help='Path to mapping between input images and binary attribute labels [/home/user/Documents/list_attr_celeba_attparsenet.csv]')
+    parser.add_argument('--show_parameters',
+                        default=False,
+                        help='If True, show network parameters [False]')
 
     parser.add_argument('--attr_list',
                         default=['5_o_Clock_Shadow', 'Arched_Eyebrows', 'Attractive',
@@ -85,37 +117,5 @@ def get_args():
                                 'Smiling', 'Straight_Hair', 'Wavy_Hair', 'Wearing_Earrings', 'Wearing_Hat',
                                 'Wearing_Lipstick', 'Wearing_Necklace', 'Wearing_Necktie', 'Young'],
                         help='List of all 40 attributes')
-
-    parser.add_argument('--mask_image_path',
-                        default='/home/user/Documents/attribute_segment_labels/',
-                        help='Path to segment label data [/home/user/Documents/attribute_segment_labels/]')
-
-    parser.add_argument('--mask_label_path',
-                        default='/home/user/Documents/segment_labels.csv',
-                        help='Path to mapping between input images and segment labels= [home/Documents/segment_labels.csv]')
-
-    parser.add_argument('--plot_loss',
-                        default=False,
-                        help='If True, plot loss curve across all epochs [False]')
-
-    parser.add_argument('--show_parameters',
-                        default=False,
-                        help='If True, show network parameters [False]')
-
-    parser.add_argument('--load_path',
-            default= '/home/user/Documents/models/model_to_load',
-                        help='File path for the model to load [/home/user/Document/models/model_to_load]')
-
-    parser.add_argument('--metrics_output_path',
-            default= '/Path/To/Output/Metrics.txt',
-                        help='File for saving metrics [/home/user/Documents/metrics/metric.txt]')
-
-    parser.add_argument('--metrics_csv_output_path',
-            default= '/Path/To/Output/Metrics.csv',
-                        help='File for saving metrics in csv format [/home/user/Documents/metrics/metric.csv]')
-
-    parser.add_argument('--save_path',
-                        default='/home/nthom/Documents/learn_pytorch/attparsenet/saved_models/validation_compare',
-                        help='Dir for saving models [./saved_models/]')
 
     return parser.parse_args()

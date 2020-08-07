@@ -29,18 +29,20 @@ def use_bbox(path_to_celeba_bbox_csv):
 ####################
 
 # works on entire directories
-def process_directory_opencv(path_to_input_images, bbox_dict, num_detected, num_not_detected):
-    if not os.path.exists("/home/nthom/Documents/AttParseNet/detected_opencv"):
-        os.mkdir("/home/nthom/Documents/AttParseNet/detected_opencv")
-    if not os.path.exists("/home/nthom/Documents/AttParseNet/not_detected"):
-        os.mkdir("/home/nthom/Documents/AttParseNet/not_detected")
+def process_directory_opencv(path_to_input_images, path_to_output_detected, path_to_output_not_detected, bbox_dict,
+                             num_detected, num_not_detected):
+
+    if not os.path.exists(path_to_output_detected):
+        os.mkdir(path_to_output_detected)
+    if not os.path.exists(path_to_output_not_detected):
+        os.mkdir(path_to_output_not_detected)
 
     # this section creates the columns for the csv file (hardcoded to work with 68 predictor)
     temp_list = []
     for landmark_index in range(68):
-        temp_list.append("x_" + str(landmark_index) + ",")
+        temp_list.append("x_" + str(landmark_index))
     for landmark_index in range(68):
-        temp_list.append("y_" + str(landmark_index) + ",")
+        temp_list.append("y_" + str(landmark_index))
     df = pd.DataFrame(columns=[col for col in temp_list])
 
     entries = sorted(os.listdir(path_to_input_images))
@@ -52,7 +54,7 @@ def process_directory_opencv(path_to_input_images, bbox_dict, num_detected, num_
 
             if len(rects) == 0:
                 num_not_detected += 1
-                cv2.imwrite(os.path.join('/home/nthom/Documents/AttParseNet/not_detected/' + entry), img)
+                cv2.imwrite(os.path.join(path_to_output_not_detected + entry), img)
 
             # if a face is detected then we go through the cropping process
             else:
@@ -69,12 +71,12 @@ def process_directory_opencv(path_to_input_images, bbox_dict, num_detected, num_
                 # (x, y, w, h) = rect_to_bb(rect)
                 # cv2.imshow("Detector Test", cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0)))
 
-                cv2.imwrite(os.path.join('/home/nthom/Documents/AttParseNet/detected_opencv/' + entry), img)
+                cv2.imwrite(os.path.join(path_to_output_detected + entry), img)
 
                 temp_list = []
                 for dimension in range(len(shape[0])):
                     for landmark in range(len(shape)):
-                        temp_list.append(shape[landmark][dimension])
+                        temp_list.append(int(shape[landmark][dimension]))
 
                 # temp_list = []
                 # for landmark_coordinate in range(len(shape)):
@@ -89,31 +91,37 @@ def process_directory_opencv(path_to_input_images, bbox_dict, num_detected, num_
     return df, detected, not_detected
 
 
-def process_directory_openface(path_to_input_images, bbox_dict, num_detected, num_not_detected):
-    if not os.path.exists("/home/nthom/Documents/AttParseNet/OpenFace_detected"):
-        os.mkdir("/home/nthom/Documents/AttParseNet/OpenFace_detected")
-    if not os.path.exists("/home/nthom/Documents/AttParseNet/OpenFace_not_detected"):
-        os.mkdir("/home/nthom/Documents/AttParseNet/OpenFace_not_detected")
-    if not os.path.exists("/home/nthom/Documents/AttParseNet/OpenFace_landmarks"):
-        os.mkdir("/home/nthom/Documents/AttParseNet/OpenFace_landmarks")
+def process_directory_openface(path_to_input_images, path_to_output_detected, path_to_output_not_detected,
+                               path_to_output_landmarks, bbox_dict, num_detected, num_not_detected):
 
-    open_face_bash_command = "/home/nthom/Documents/OpenFace/build/bin/FaceLandmarkImg -2Dfp -wild -fdir " + path_to_input_images + " -out_dir /home/nthom/Documents/AttParseNet/OpenFace_landmarks"
+    if not os.path.exists(path_to_output_detected):
+        os.mkdir(path_to_output_detected)
+    if not os.path.exists(path_to_output_not_detected):
+        os.mkdir(path_to_output_not_detected)
+    if not os.path.exists(path_to_output_landmarks):
+        os.mkdir(path_to_output_landmarks)
+
+    open_face_bash_command = "/home/user/Documents/OpenFace/build/bin/FaceLandmarkImg -2Dfp -wild -fdir " + \
+                             path_to_input_images + " -out_dir" + path_to_output_landmarks
     subprocess.call(open_face_bash_command.split())
 
     # this section creates the columns for the csv file (hardcoded to work with 68 predictor)
     temp_list = []
     for landmark_index in range(68):
-        temp_list.append("x_" + str(landmark_index) + ",")
+        temp_list.append("x_" + str(landmark_index))
     for landmark_index in range(68):
-        temp_list.append("y_" + str(landmark_index) + ",")
+        temp_list.append("y_" + str(landmark_index))
     landmark_df = pd.DataFrame(columns=[col for col in temp_list])
 
     entries = sorted(os.listdir(path_to_input_images))
     for entry in entries:
-        landmark_df = extract_landmarks_openface(entry, '/home/nthom/Documents/AttParseNet/OpenFace_landmarks/', landmark_df, path_to_input_images,
-                                                 bbox_dict, '/home/nthom/Documents/AttParseNet/OpenFace_detected', num_detected, num_not_detected)
+        landmark_df, num_detected, num_not_detected = extract_landmarks_openface(entry, path_to_output_landmarks,
+                                                                                 landmark_df, path_to_input_images,
+                                                                                 bbox_dict, path_to_output_detected,
+                                                                                 path_to_output_not_detected,
+                                                                                 num_detected, num_not_detected)
 
-    return landmark_df
+    return landmark_df, num_detected, num_not_detected
 
 
 def get_rect(rects, bbox):
@@ -157,15 +165,16 @@ def shape_to_np(shape, dtype="int"):
     return coords
 
 
-def extract_landmarks_openface(image_name, openface_output_directory, landmark_df, path_to_input_images, bbox_dict,
-                               output_directory, num_detected, num_not_detected):
-    entry = openface_output_directory + image_name[:-4] + ".csv"
+def extract_landmarks_openface(image_name, path_to_output_landmarks, landmark_df, path_to_input_images, bbox_dict,
+                               path_to_output_detected, path_to_output_not_detected, num_detected, num_not_detected):
+
+    entry = path_to_output_landmarks + image_name[:-4] + ".csv"
     file_path = path_to_input_images + '/' + image_name
 
     # Check if landmark csv exists for the current input image
     if os.path.isfile(entry) is False:
         num_not_detected += 1
-        shutil.copy(file_path, "/home/nthom/Documents/AttParseNet/OpenFace_not_detected")
+        shutil.copy(file_path, path_to_output_not_detected)
         return landmark_df
     # If the landmark csv does exist
     else:
@@ -173,17 +182,20 @@ def extract_landmarks_openface(image_name, openface_output_directory, landmark_d
         img = cv2.imread(file_path)
         temp_list = []
         old_df = pd.read_csv(entry)
-        k = get_rect_OpenFace(old_df, bbox_dict)
+        k = get_rect_OpenFace(old_df, bbox_dict[image_name])
         for i in range(68):
-            value = (old_df.at[k, " x_" + str(i)], old_df.at[k, " y_" + str(i)])
+            value = int(old_df.at[k, " x_" + str(i)])
+            temp_list.append(value)
+        for i in range(68):
+            value = int(old_df.at[k, " y_" + str(i)])
             temp_list.append(value)
 
         df_length = len(landmark_df)
         landmark_df.loc[df_length] = temp_list
         landmark_df.index = landmark_df.index[:-1].tolist() + [image_name]
 
-        cv2.imwrite(output_directory + "/" + image_name, img)
-        return landmark_df
+        cv2.imwrite(path_to_output_detected + "/" + image_name, img)
+        return landmark_df, num_detected, num_not_detected
 
 
 def get_rect_OpenFace(of_landmarks, bbox):
@@ -232,16 +244,44 @@ if __name__ == "__main__":
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
-    bbox_dict = use_bbox("~/mnt/mworks03/home/nthom/Documents/datasets/celebA/Anno/list_bbox_celeba.txt")
-    path_to_input_images = "/home/nthom/Documents/datasets/celebA/images/img_celeba_sample/"
+    path_to_opencv_input_images = "/home/user/Documents/dataset/"
+    path_to_openface_input_images = "./opencv_not_detected/"
 
-    # opencv_df, detected, not_detected = process_directory_opencv(path_to_input_images, bbox_dict, detected, not_detected)
-    # opencv_df.to_csv("opencv_landmarks.csv")
-    # opencv_features = create_new_csv(opencv_df, "/home/nthom/Documents/datasets/celebA/Anno/list_attr_celeba.txt")
+    path_to_celeba = "/home/user/Documents/dataset/"
+    path_to_celeba_bbox_annotations = path_to_opencv_input_images + "Anno/list_bbox_celeba.txt"
+    path_to_celeba_attribute_annotations = path_to_celeba + "Anno/list_attr_celeba.txt"
+    path_to_celeba_unaligned_images = "images/img_celeba/"
 
-    openface_df, detected, not_detected = process_directory_openface(path_to_input_images, bbox_dict, detected, not_detected)
-    openface_df.to_csv("openface_landmarks.csv")
-    openface_features = create_new_csv(openface_df, "~/mnt/mworks03/home/nthom/Documents/datasets/celebA/Anno/list_attr_celeba.txt")
+    path_to_output_opencv_landmark_csv = "./opencv_landmarks.csv"
+    path_to_output_openface_landmark_csv = "./openface_landmarks.csv"
+
+    path_to_output_opencv_detected_images = "./opencv_detected/"
+    path_to_output_opencv_not_detected_images = "./opencv_not_detected/"
+
+    path_to_output_openface_detected_images = "./openface_detected/"
+    path_to_output_openface_not_detected_images = "./openface_not_detected/"
+    path_to_output_openface_landmarks = "./openface_landmarks/"
+
+    bbox_dict = use_bbox(path_to_celeba_bbox_annotations)
+
+    opencv_df, temp_detected, temp_not_detected = process_directory_opencv(path_to_celeba_unaligned_images, bbox_dict,
+                                                                           path_to_output_opencv_detected_images,
+                                                                           path_to_output_opencv_not_detected_images,
+                                                                           detected, not_detected)
+    detected += temp_detected
+    not_detected += temp_not_detected
+    opencv_df.to_csv(path_to_output_opencv_landmark_csv)
+    opencv_features = create_new_csv(opencv_df, path_to_celeba_attribute_annotations)
+
+    openface_df, temp_detected, temp_not_detected = process_directory_openface(path_to_celeba_unaligned_images,
+                                                                               path_to_output_openface_detected_images,
+                                                                               path_to_output_openface_not_detected_images,
+                                                                               path_to_output_openface_landmarks,
+                                                                               bbox_dict, detected, not_detected)
+    detected += temp_detected
+    not_detected += temp_not_detected
+    openface_df.to_csv(path_to_output_openface_landmark_csv)
+    openface_features = create_new_csv(openface_df, path_to_celeba_attribute_annotations)
 
     print(f"Number of images detected {detected}")
     print(f"Number of images NOT detected: {not_detected}")

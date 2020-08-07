@@ -65,8 +65,9 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
     </li>
 </ul>
 
-![AttParseNet Architecture](https://github.com/natethom/AttParseNet/blob/master/AttParseNet.png?raw=true)
-
+![AttParseNet Architecture](https://github.com/natethom/AttParseNet/blob/master/README_Images/AttParseNet.png?raw=true)
+![Facial Landmark Layout](https://github.com/natethom/AttParseNet/blob/master/README_Images/Landmarks.jpeg?raw=true)
+![Segment Label Example](https://github.com/natethom/AttParseNet/blob/master/README_Images/Example_Segment_Label.jpg?raw=true)
 **What is in this repository:**<br/>
 <ul>
     <li>
@@ -77,6 +78,17 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
             </li>
             <li>
                 Reads in data, trains a new or pretrained model, tests the model
+            </li>
+        </ul>
+    </li>
+    <li>
+        attparsenet_landmark_labeler.py
+        <ul>
+            <li>
+                Generates and stores the facial landmark labels to csv
+            </li>
+            <li>
+                Uses the opencv and openface to automatically detect 68 facial landmarks
             </li>
         </ul>
     </li>
@@ -128,5 +140,3 @@ AttParseNet is a simple convolutional neural network for facial attribute recogn
         </ul>
     </li>
 </ul>
-
-**How to use this code:**<br/>
