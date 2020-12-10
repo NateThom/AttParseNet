@@ -1,77 +1,38 @@
-import attparsenet_utils
+import attparsenet_update_utils
 import os
 import torch
 import time
 import cv2
+import copy
 from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
+import torchvision.models as models
 
-from skimage import transform
+# from skimage import transform
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms
 from PIL import Image
 
-
-class Rescale(object):
-    """Rescale the image and masks in a sample to a given size.
-    Args:
-        output_size (tuple or int): Desired output size. If tuple, output is matched to output_size. If int, smaller
-        of image edges is matched to output_size keeping aspect ratio the same.
-    """
-
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        self.output_size = output_size
-
-    def __call__(self, sample):
-        # Create copies of the variables that will be transformed from the values passed in
-        image, masks = sample['image'], sample['masks']
-
-        # Get the height and width of the image passed in
-        h, w = image.shape[:2]
-
-        # Verify that the variables passed in conform to the expected format
-        if isinstance(self.output_size, int):
-            if h > w:
-                new_h, new_w = self.output_size * h / w, self.output_size
-            else:
-                new_h, new_w = self.output_size, self.output_size * w / h
-        else:
-            new_h, new_w = self.output_size
-        new_h, new_w = int(new_h), int(new_w)
-
-        # THIS SEEMS LIKE SOMETHING THAT SHOULD BE ADDRESSED IN THE README
-        #     AND INCLUDED IN THE ATTPARSENET_UTILS.PY FILE
-        # if images are not resized before input then uncomment the next line
-
-        # img = transform.resize(image, (new_h, new_w))
-
-        msk = []
-        # Iterate over all 40 segment labels in the masks variable, resize them, and append them to the msk list
-        for index in range(len(masks)):
-            msk.append(transform.resize(masks[index], (new_h, new_w)))
-        msk = np.asarray(msk)
-
-        # Return the resized image and masks. Note that attributes was not transformed
-        return {'image': image, 'attributes': sample['attributes'], 'masks': msk}
-
+# Get args from attparsenet_utils.py
+args = attparsenet_update_utils.get_args()
+activation = None
 
 class AttParseNetRandomCrop(object):
-    """Crop randomly the image and masks in a sample. The masks are then resized to dimensions of 96x76
+    """Crop randomly the image and masks in a sample. The masks are then resized to dimensions of 21x21
 
     Args:
         output_size (tuple or int): Desired output size. If int, square crop
             is made.
     """
 
-    def __init__(self, output_size):
+    def __init__(self, output_size, mask_output_size):
         # Ensure that the arguments passed in are of the expected format
         assert isinstance(output_size, (int, tuple))
         if isinstance(output_size, int):
@@ -80,8 +41,10 @@ class AttParseNetRandomCrop(object):
             assert len(output_size) == 2
             self.output_size = output_size
 
+        self.mask_output_size = mask_output_size
+
     def __call__(self, sample):
-        image, masks = sample['image'], sample['masks']
+        image = sample["image"]
 
         # Uncommnet the next three lines for testing: input image before resizing
         # image = image.numpy()
@@ -95,57 +58,48 @@ class AttParseNetRandomCrop(object):
         new_image_h, new_image_w = self.output_size
 
         # Randomly select a point to crop the top and left edge of the image to
-        top = np.random.randint(0, image_h - new_image_h)
-        left = np.random.randint(0, image_w - new_image_w)
+        top = torch.randint(0, image_h - new_image_h, (1,))
+        left = torch.randint(0, image_w - new_image_w, (1,))
+        # top = np.random.randint(0, image_h - new_image_h)
+        # left = np.random.randint(0, image_w - new_image_w)
 
         # Narrow (crop) the image
-        image = image.narrow(1, top, new_image_h)
-        image = image.narrow(2, left, new_image_w)
+        image = image.narrow(1, top[0], new_image_h)
+        image = image.narrow(2, left[0], new_image_w)
 
-        # Copy the height and width from output size
-        new_mask_h, new_mask_w = self.output_size
+        if args.segment == True:
+            masks = sample["masks"]
 
-        # Narrow (crop) the masks to the same randomly selected parameters as image
-        masks = masks.narrow(1, top, new_mask_h)
-        masks = masks.narrow(2, left, new_mask_w)
+            # Copy the height and width from output size
+            new_mask_h, new_mask_w = self.output_size
 
-        # Resize each of the images to dimensions of 96x76 and ensure that all pixel values are either 0 or 255
-        output_masks = None
-        for index, mask in enumerate(masks):
-            # Convert to numpy and resize
-            mask_np = mask.numpy()
-            mask_np = cv2.resize(mask_np, (76, 96))
+            # Narrow (crop) the masks to the same randomly selected parameters as image
+            masks = masks.narrow(1, top[0], new_mask_h)
+            masks = masks.narrow(2, left[0], new_mask_w)
 
-            # Ensure that all pixel values are either 0 or 255
-            mask_np = (mask_np > 0).astype(np.uint8) * 255
+            # Resize each of the images to dimensions of 96x76 and ensure that all pixel values are either 0 or 255
+            output_masks = None
+            for index, mask in enumerate(masks):
+                # Convert to numpy and resize
+                mask_np = mask.numpy()
+                mask_np = cv2.resize(mask_np, (self.mask_output_size[1], self.mask_output_size[0]))
 
-            # Convert back to tensor
-            mask_np = TF.to_tensor(mask_np)
+                # Ensure that all pixel values are either 0 or 255
+                mask_np = (mask_np > 0).astype(np.uint8) * 255
 
-            # Reconstruct the tensors so that they have a dimension of 40x96x76
-            if output_masks is None:
-                output_masks = mask_np
-            else:
-                output_masks = torch.cat((mask_np, output_masks))
+                # Convert back to tensor
+                mask_np = TF.to_tensor(mask_np)
 
-        # Return the randomly cropped image and masks, note that attributes were not transformed
-        return {'image': image, 'attributes': sample['attributes'], 'masks': output_masks}
+                # Reconstruct the tensors so that they have a dimension of 40x96x76
+                if output_masks is None:
+                    output_masks = mask_np
+                else:
+                    output_masks = torch.cat((mask_np, output_masks))
 
+            # Return the randomly cropped image and masks, note that attributes were not transformed
+            return {'image': image, 'attributes': sample['attributes'], 'masks': output_masks}
 
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors. Currently only converts the input image."""
-
-    def __call__(self, sample):
-        image, attributes, masks = sample['image'], sample['attributes'], sample['masks']
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
-        image = image.transpose((2, 0, 1))
-
-        return {'image': torch.from_numpy(image),
-                'attributes': torch.from_numpy(attributes),
-                'masks': torch.from_numpy(masks)}
+        return {'image': image, 'attributes': sample['attributes']}
 
 
 class AttParseNetDataset(Dataset):
@@ -178,10 +132,14 @@ class AttParseNetDataset(Dataset):
         img_name = os.path.join(self.args.image_path, self.input_filenames.iloc[idx, 0])
 
         # Read the image into memory, convert it to numpy, create a copy of it, and finally make the image a tensor
-        read_image = Image.open(img_name)
-        np_image = np.asarray(read_image)
-        image = np.copy(np_image)
-        image = torch.from_numpy(image)
+        # read_image = Image.open(img_name)
+        # np_image = np.asarray(read_image).transpose(2, 0, 1)
+        # image = np.copy(np_image)
+        # image = torch.from_numpy(image)
+        image = cv2.imread(img_name)
+        image = image.astype('uint8')
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = TF.to_tensor(image)
 
         # Read in the attribute labels for the current input image
         attributes = self.attr_labels.iloc[idx,]
@@ -193,20 +151,51 @@ class AttParseNetDataset(Dataset):
         # Convert the labels to floats, I think that this was necessary for training
         attributes = torch.from_numpy(attributes).float()
 
+        if args.segment == False:
+            sample = {'image': image, 'attributes': attributes}
+            if self.transform:
+                sample = self.transform(sample)
+            return sample
+
+        #mask_start_time = time.time()
         # Read all of the segment label images for the current input image
+
+        #masks = None
+        #for filename in self.mask_label_filenames.iloc[idx,]:
+        #    mask = cv2.imread(os.path.join(self.args.mask_image_path, filename), 0)
+        #    if masks == None:
+        #        masks = TF.to_tensor(mask)
+        #    else:
+        #        mask = TF.to_tensor(mask)
+        #        masks = torch.cat((mask, masks))
+
         masks = None
+        temp = None
+        cat_count = 0
         for filename in self.mask_label_filenames.iloc[idx,]:
+            cat_count += 1
             mask = cv2.imread(os.path.join(self.args.mask_image_path, filename), 0)
             if masks == None:
                 masks = TF.to_tensor(mask)
+            elif temp == None:
+                temp = TF.to_tensor(mask)
             else:
                 mask = TF.to_tensor(mask)
-                masks = torch.cat((mask, masks))
+                temp = torch.cat((mask, temp))
+                if cat_count == 10:
+                    masks = torch.cat((temp, masks))
+                    temp = None
+                    cat_count = 0
+        if temp != None:
+                masks = torch.cat((temp, masks))
+
+        #mask_end_time = time.time()
+        #print(mask_end_time - mask_start_time)
+        #a
 
         sample = {'image': image, 'attributes': attributes, 'masks': masks}
 
         if self.transform:
-            print("TRANSFORM")
             sample = self.transform(sample)
 
         return sample
@@ -243,7 +232,6 @@ class AttParseNet(nn.Module):
         x = self.fc1(x)
         return x, x_maps
 
-
 def show_batch(batch, show_input=True, show_masks=True):
     images_batch, attributes_batch, masks_batch = batch['image'], \
                                                   batch['attributes'], \
@@ -275,34 +263,7 @@ def show_batch(batch, show_input=True, show_masks=True):
     ####################
 
 
-def plot_loss(args, loss_per_epoch, epochs):
-    plt.figure()
-    if loss_per_epoch[-1] > 1:
-        plt.axis([0, epochs[-1], 0, max(loss_per_epoch)])
-    else:
-        plt.axis([0, epochs[-1], 0, 2])
-
-    plt.xlabel('Epochs', fontsize=16)
-    plt.ylabel('Loss', fontsize=16)
-    plt.title(f'Loss Curve - Epoch {epochs[-1] + 1}')
-    plt.plot(epochs, loss_per_epoch)
-    plt.savefig(args.train_plot_path + f'Pretrain_Loss_Curve_Epoch_{epochs[-1] + 1}')
-
-# Call prior to training or testing to see batch load times
-def test_batch_load_time(args, data_loader):
-    start_time = time.time()
-    for progress_counter, batch in enumerate(data_loader):
-        progress_counter += 1
-        show_batch(args, batch)
-        print(progress_counter)
-        print(f"Total time: {time.time() - start_time}")
-    print("End of test")
-
-# Computes total accuracy, accuracy of positive samples, accuracy of negative samples, precision, and recall of the
-# current batch
-def compute_metrics(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count,
-                    false_neg_count):
-
+def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count):
     # We use the BCEWithLogits loss function, so the sigmoid needs to be applied before computing our metrics
     attribute_preds = torch.sigmoid(attribute_preds)
     attribute_preds = torch.round(attribute_preds)
@@ -326,8 +287,12 @@ def compute_metrics(attribute_preds, attribute_labels, true_pos_count, true_neg_
     false_pos_count += false_positive
     false_neg_count += false_negative
 
+# Computes total accuracy, accuracy of positive samples, accuracy of negative samples, precision, and recall of the
+# current batch
+def compute_metrics(true_pos_count, true_neg_count, false_pos_count, false_neg_count):
     precision = (true_pos_count / (true_pos_count + false_pos_count))
     recall = (true_pos_count / (true_pos_count + false_neg_count))
+    f1 = 2 * ((precision * recall)/ (precision + recall))
     accuracy = ((true_pos_count + true_neg_count) / (
             true_pos_count + true_neg_count + false_pos_count + false_neg_count))
     accuracy_pos = (true_pos_count / (true_pos_count + false_neg_count))
@@ -335,35 +300,39 @@ def compute_metrics(attribute_preds, attribute_labels, true_pos_count, true_neg_
 
     precision = torch.where(torch.isnan(precision), torch.zeros_like(precision), precision)
     recall = torch.where(torch.isnan(recall), torch.zeros_like(recall), recall)
+    f1 = torch.where(torch.isnan(f1), torch.zeros_like(f1), f1)
     accuracy = torch.where(torch.isnan(accuracy), torch.zeros_like(accuracy), accuracy)
     accuracy_pos = torch.where(torch.isnan(accuracy_pos), torch.zeros_like(accuracy_pos), accuracy_pos)
     accuracy_neg = torch.where(torch.isnan(accuracy_neg), torch.zeros_like(accuracy_neg), accuracy_neg)
 
-    return precision, recall, accuracy, accuracy_pos, accuracy_neg
+    return precision, recall, f1, accuracy, accuracy_pos, accuracy_neg
 
 # Function for outputting metrics. Can output to console, csv, or txt (note comma separated) file
-def output(args, output_preds, iteration_time, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall,
+def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall, f1_score, test_flag,
            console=True, file=False, csv=False):
     ### TO FILE ###
     if file == True:
-        fout = open(args.metrics_output_path, "w+")
-        fout.write("{0:29} {1:13} {2:13} {3:13} {4:13} {5:13}\n".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
-                                                                        "Precision", "Recall"))
+        fout = open(args.metrics_output_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
+        fout.write("{0:29} {1:13} {2:13} {3:13} {4:13} {5:13} {6:13}\n".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
+                                                                        "Precision", "Recall", "F1"))
         fout.write('-' * 103)
         fout.write("\n")
-        for attr, acc, acc_pos, acc_neg, prec, rec in zip(args.attr_list, accuracy, accuracy_pos, accuracy_neg,
-                                                          precision, recall):
+
+        for attr, acc, acc_pos, acc_neg, prec, rec, f1 in zip(args.attr_list, accuracy, accuracy_pos, accuracy_neg,
+                                                          precision, recall, f1_score):
             fout.write(
-                "{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f}\n".format(attr, acc, acc_pos, acc_neg, prec,
-                                                                                    rec))
+                "{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f} {6:13.3f}\n".format(attr, acc, acc_pos,
+                                                                                              acc_neg, prec, rec, f1))
         fout.write('-' * 103)
-        fout.write("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f}\n".format('', torch.mean(accuracy),
+        fout.write('\n')
+
+        fout.write("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f} {6:13.3f}\n".format('', torch.mean(accuracy),
                                                                                        torch.mean(accuracy_pos),
                                                                                        torch.mean(accuracy_neg),
                                                                                        torch.mean(precision),
-                                                                                       torch.mean(recall)))
+                                                                                       torch.mean(recall),
+                                                                                       torch.mean(f1_score)))
 
-        fout.write(f"Iteration time: {time.time() - iteration_time}\n")
         fout.write(f"Total time: {time.time() - start_time}\n")
         fout.close()
     ##############
@@ -371,21 +340,22 @@ def output(args, output_preds, iteration_time, start_time, accuracy, accuracy_po
     ### TO CONSOLE ###
     if console == True:
         print(
-            "{0:29} {1:13} {2:13} {3:13} {4:13} {5:13}".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg", "Precision",
-                                                               "Recall"))
+            "{0:29} {1:13} {2:13} {3:13} {4:13} {5:13} {6:13}".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
+                                                                      "Precision", "Recall", "F1"))
         print('-' * 103)
-        for attr, acc, acc_pos, acc_neg, prec, rec in zip(args.attr_list, accuracy, accuracy_pos, accuracy_neg,
-                                                          precision, recall):
-            print("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f}".format(attr, acc, acc_pos, acc_neg, prec,
-                                                                                    rec))
+
+        for attr, acc, acc_pos, acc_neg, prec, rec, f1 in zip(args.attr_list, accuracy, accuracy_pos, accuracy_neg,
+                                                          precision, recall, f1_score):
+            print("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f} {6:13.3f}".format(attr, acc, acc_pos,
+                                                                                              acc_neg, prec, rec, f1))
         print('-' * 103)
-        print("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f}".format('', torch.mean(accuracy),
+        print("{0:19} {1:13.3f} {2:13.3f} {3:13.3f} {4:13.3f} {5:13.3f} {6:13.3f}".format('', torch.mean(accuracy),
                                                                                 torch.mean(accuracy_pos),
                                                                                 torch.mean(accuracy_neg),
                                                                                 torch.mean(precision),
-                                                                                torch.mean(recall)))
+                                                                                torch.mean(recall),
+                                                                                torch.mean(f1_score)))
 
-        print(f"Iteration time: {time.time() - iteration_time}")
         print(f"Total time: {time.time() - start_time}")
     #################
 
@@ -396,64 +366,125 @@ def output(args, output_preds, iteration_time, start_time, accuracy, accuracy_po
         output_preds.append(accuracy_neg.tolist())
         output_preds.append(precision.tolist())
         output_preds.append(recall.tolist())
+        output_preds.append(f1_score.tolist())
         output_preds_df = pd.DataFrame(output_preds)
-        output_preds_df.to_csv(args.metrics_csv_output_path, sep=',')
+        output_preds_df.to_csv(args.metrics_csv_output_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
     ##############
 
+# Calculates a weight for each attribute in each sample such that batches are balanced to a target distribution
+def balance(args, target_distribution, data):
+    start_time = time.time()
+    weight_matrix = torch.zeros_like(data)
+    temp_pos = torch.ones(data.shape, dtype=data.dtype, layout=data.layout, device=data.device)
+    temp_neg = torch.ones(data.shape, dtype=data.dtype, layout=data.layout, device=data.device)
+
+    pos_counts = data.sum(0)
+    neg_counts = (data == 0).sum(0).float()
+
+    xp, yp = torch.where(data == 1)
+    xn, yn = torch.where(data == 0)
+
+    pos_dist = pos_counts / args.batch_size
+    neg_dist = neg_counts / args.batch_size
+
+    pos_w = (neg_dist * target_distribution) / (pos_dist * target_distribution)
+    neg_w = (pos_dist * target_distribution) / (neg_dist * target_distribution)
+
+    pos_dist = pos_dist.repeat(data.shape[0], 1)
+    neg_dist = neg_dist.repeat(data.shape[0], 1)
+
+    x1, y1 = torch.where(target_distribution <= pos_dist)
+    temp_pos[x1, y1] = pos_w.repeat(data.shape[0], 1)[x1, y1]
+
+    x2, y2 = torch.where(target_distribution <= neg_dist)
+    temp_neg[x2, y2] = neg_w.repeat(data.shape[0], 1)[x2, y2]
+
+    weight_matrix[xp, yp] = temp_pos[xp, yp]
+    weight_matrix[xn, yn] = temp_neg[xn, yn]
+
+    return weight_matrix
+
 # Trains the model for one epoch
-def train(net, optimizer, criterion1, criterion2, data_loader, start_time):
+def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time):
     running_total_loss = 0.0
     running_bce_loss = 0.0
-    running_l2_loss = 0.0
+    running_mse_loss = 0.0
+    running_iteration_time = 0.0
+
+    if args.model == "moon":
+        device = torch.device("cuda:1")
+    else:
+        device = torch.device("cuda")
+    net.to(device)
 
     # Iterate over all batches in an epoch
     for iteration_index, sample_batched in enumerate(data_loader):
         iteration_time = time.time()
 
         # Get the input images, attribute labels, and masks for each sample in the batch
-        inputs, attribute_labels, mask_labels = sample_batched['image'], sample_batched['attributes'], \
-                                                sample_batched['masks']
-
-        #show_batch(sample_batched, show_input=True, show_masks=True)
-
         # Place the model and batch of data onto the GPU
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        net.to(device)
-        inputs, attribute_labels, mask_labels = inputs.to(device), attribute_labels.to(device), mask_labels.to(device)
+        if args.segment == True:
+            inputs, attribute_labels, mask_labels = sample_batched['image'], sample_batched['attributes'], sample_batched['masks']
+            inputs, attribute_labels, mask_labels = inputs.to(device), attribute_labels.to(device), mask_labels.to(device)
+        else:
+            inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
+            inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
+
+        # show_batch(sample_batched, show_input=True, show_masks=True)
+
+        # Generate batch balancing weights
+        if args.balance == True:
+            batch_weights = balance(args, target_distribution=0.5, data=attribute_labels)
+            batch_weights = batch_weights.to(device)
+            criterion1 = nn.BCEWithLogitsLoss(weight=batch_weights)
 
         # Zero the gradients
-        optimizer.zero_grad()
         net.zero_grad()
 
-        # Get a attribute and mask predictions for each sample in the batch
-        attribute_preds, mask_preds = net(inputs)
+        # Get attribute and mask predictions for each sample in the batch
+        if args.segment == True and args.model == "moon":
+            attribute_preds = net(inputs)
+            mask_preds = activation
+        elif args.segment == True:
+            attribute_preds, mask_preds = net(inputs)
+        else:
+            attribute_preds = net(inputs)
 
         # Compute loss for attribute prediction and segmentation separately, then add them together
-        loss1 = criterion1(attribute_preds, attribute_labels)
-        loss2 = 2 * torch.sqrt(criterion2(mask_preds, mask_labels))
-        loss = loss1 + loss2
+        bce_loss = criterion1(attribute_preds, attribute_labels)
+
+        if args.segment == True:
+            mse_loss = criterion2(mask_preds, mask_labels)
+            running_mse_loss += mse_loss.item()
+            loss = bce_loss + mse_loss
+        else:
+            running_mse_loss += 0
+            loss = bce_loss
 
         # Calculate backprop and step
         loss.backward()
         optimizer.step()
 
+        running_bce_loss += bce_loss.item()
         running_total_loss += loss.item()
-        running_bce_loss += loss1.item()
-        running_l2_loss += loss2.item()
+        running_iteration_time += time.time() - iteration_time
 
         if iteration_index % 10 == 0:
-            print(f"Iteration {iteration_index} Total loss: {running_total_loss / (iteration_index + 1)} "
-                  f"BCE loss: {running_bce_loss / (iteration_index + 1)} "
-                  f"L2 loss: {running_l2_loss / (iteration_index + 1)}")
+            print(f"Iteration {iteration_index}")
+            print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
+            print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
+            print(f"MSE loss: {running_mse_loss / (iteration_index + 1)}")
             print(f"Iteration time: {time.time() - iteration_time}")
-            print(f"Total time: {time.time() - start_time}")
+            print(f"Average Iteration time: {running_iteration_time / (iteration_index + 1)}")
+            print(f"Total time: {time.time() - start_time} \n")
+
+        # pd.DataFrame(attribute_preds.tolist()).to_csv(f"./preds/{iteration_index}.csv")
 
     return running_total_loss
 
 
-def test(net, optimizer, criterion1, criterion2, data_loader):
-    running_total_loss = 0.0
-
+def test(args, net, optimizer, criterion1, criterion2, data_loader, test_flag):
+    start_time = time.time()
     output_preds = []
 
     true_pos_count = torch.zeros(40)
@@ -461,76 +492,92 @@ def test(net, optimizer, criterion1, criterion2, data_loader):
     false_pos_count = torch.zeros(40)
     false_neg_count = torch.zeros(40)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    net.to(device)
+
     for progress_counter, sample_batched in enumerate(data_loader):
-        print(f"Validation Iteration: {progress_counter}")
-        iteration_time = time.time()
-        inputs, attribute_labels, mask_labels = sample_batched['image'], sample_batched['attributes'], \
-                                                sample_batched['masks']
+        if test_flag:
+            print(f"Test Iteration: {progress_counter}")
+        else:
+            print(f"Validation Iteration: {progress_counter}")
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        net.to(device)
-        inputs, attribute_labels, mask_labels = inputs.to(device), attribute_labels.to(device), mask_labels.to(device)
-
-        optimizer.zero_grad()
         net.zero_grad()
 
-        attribute_preds, mask_preds = net(inputs)
+        if args.segment == True:
+            inputs, attribute_labels, mask_labels = sample_batched['image'], sample_batched['attributes'], sample_batched['masks']
+            inputs, attribute_labels, mask_labels = inputs.to(device), attribute_labels.to(device), mask_labels.to(device)
+            attribute_preds, mask_preds = net(inputs)
+        else:
+            inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
+            inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
+            attribute_preds = net(inputs)
 
-        loss1 = criterion1(attribute_preds, attribute_labels)
-        loss2 = 2 * torch.sqrt(criterion2(mask_preds, mask_labels))
-        loss = loss1 + loss2
-        running_total_loss += loss
+        # Uncomment the following line when computing metrics
+        compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count)
 
-        # Uncomment the next 5 lines to view the metrics for each batch
-        # precision, recall, accuracy, accuracy_pos, accuracy_neg = compute_metrics(attribute_preds, attribute_labels,
-        #                                                                           true_pos_count, true_neg_count,
-        #                                                                           false_pos_count, false_neg_count)
-        #
-        # output(args, output_preds, iteration_time, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall)
+    precision, recall, f1, accuracy, accuracy_pos, accuracy_neg = compute_metrics(true_pos_count, true_neg_count,
+                                                                                  false_pos_count, false_neg_count)
 
-    return running_total_loss
-
+    output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall, f1, test_flag, csv=True, file=True, console=True)
 
 def main():
-    # Get args from attparsenet_utils.py
-    args = attparsenet_utils.get_args()
+    # # Get args from attparsenet_utils.py
+    # args = attparsenet_update_utils.get_args()
+
+    # Initialize the model
+    if args.model == "attparsenet":
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (76, 96))]))
+        net = AttParseNet()
+    elif args.model == "vgg":
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
+        net = models.vgg16()
+    elif args.model == "moon":
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
+        net = models.vgg16()
+        # net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        # net.classifier[0] = nn.Linear(1960, 4096)
+        # # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        # # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        net.classifier[6] = nn.Linear(4096, 40)
+        #
+        # def get_activation():
+        #     def hook(model, input, output):
+        #         global activation
+        #         activation = output.detach()
+        #     return hook
+        # net.features[14].register_forward_hook(get_activation())
 
     # Collect dataset and apply transformations
-    dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((218, 178))]))
+
 
     # Establish train, validate, and test splits
-    train_indices, val_indices, test_indices = list(range(args.train_size)), \
-                                               list(range(args.train_size, args.train_size + args.val_size)), \
-                                               list(range(args.train_size + args.val_size, args.all_size))
-
     if args.shuffle:
-        np.random.seed(args.random_seed)
+        train_indices, val_indices, test_indices = (torch.randint(low=0, high=args.train_size, size=(args.train_size,)),
+                                                    torch.randint(low=args.train_size, high=args.train_size + args.val_size, size=(args.val_size,)),
+                                                    torch.randint(low=args.train_size + args.val_size, high=args.all_size, size=(args.test_size,)))
+    else:
+        train_indices, val_indices, test_indices = (torch.tensor(list(range(args.train_size))),
+                                                   torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
+                                                   torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
+
+    # train_indices = list(range(10))
+    # val_indices = list(range(10))
+
+    # if args.shuffle:
+        # np.random.seed(args.random_seed)
         # np.random.seed(np.random.randrange(100))
-        np.random.shuffle(train_indices)
+        # np.random.shuffle(train_indices)
 
     train_set = Subset(dataset, train_indices)
     val_set = Subset(dataset, val_indices)
     test_set = Subset(dataset, test_indices)
 
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=1)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=1)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=1)
-
-    # Initialize the model
-    net = AttParseNet()
-
-    # Load a model from disk
-    if args.load is True:
-        net.load_state_dict(torch.load(args.load_path), strict=False)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # Compute number of parameters in the network
     pytorch_total_params = sum(p.numel() for p in net.parameters())
-
-    ########## Parallelization ##########
-    if args.parallelize:
-        net = nn.DataParallel(net)
-    #####################################
 
     print(net)
     print(f"Total parameters in AttParseNet: {pytorch_total_params}")
@@ -541,6 +588,11 @@ def main():
         for i in range(len(params)):
             print(params[i].size())
 
+    ########## Parallelization ##########
+    if args.parallelize:
+        net = nn.DataParallel(net)
+    #####################################
+
     # Initialize loss functions and optimizer
     criterion1 = nn.BCEWithLogitsLoss()
     criterion2 = nn.MSELoss()
@@ -548,32 +600,57 @@ def main():
 
     ########## TRAIN BY NUM EPOCH ##########
     if args.train_by_num_epoch:
+        # Load a model from disk
+        if args.load is True:
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            epoch = checkpoint['epoch']
+            net.train()
+            print("Model Loaded!")
+        else:
+            epoch = 0
+
         start_time = time.time()
         min_loss = np.inf
 
         loss_per_epoch = []
 
         # Train for the number of epochs denoted in attparsenet_utils.py
-        for epoch in tqdm(range(args.train_epochs)):
+        for epoch_count in tqdm(range(args.train_epochs)):
             # Store the total loss over the training epoch
-            epoch_loss = train(net, optimizer, criterion1, criterion2, train_loader, start_time)
-            print(f"Epoch {epoch} Loss: {epoch_loss}")
+            epoch_loss = train(args, net, criterion1, criterion2, optimizer, train_loader, start_time)
+            print(f"Epoch {epoch + epoch_count} Loss: {epoch_loss}")
 
-            if args.plot_loss:
-                loss_per_epoch.append(epoch_loss / len(train_loader))
+            # if (epoch_loss / len(train_loader)) < min_loss and args.save:
+            #     min_loss = epoch_loss / len(train_loader)
+            #     torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
 
-            if (epoch_loss / len(train_loader)) < min_loss and args.save:
-                min_loss = epoch_loss / len(train_loader)
-                torch.save(net.state_dict(), args.save_path + f"_{str(epoch)}_{str(epoch_loss)}")
+            # torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
 
-        if args.plot_loss:
-            epochs = [i for i in range(epoch + 1)]
-            plot_loss(args, loss_per_epoch, epochs)
+            torch.save({
+                'epoch': epoch + epoch_count,
+                'model_state_dict': net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
+
         print("Finished Training!")
     ##########
 
     ########## TRAIN BY COMP W/ VALIDATION ##########
     if args.train_by_comparison_with_validation:
+        # Load a model from disk
+        if args.load is True:
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            epoch = checkpoint['epoch']
+            net.train()
+            print("Model Loaded!")
+        else:
+            epoch = 0
 
         start_time = time.time()
         min_loss = np.inf
@@ -588,34 +665,58 @@ def main():
         while training_loss >= validation_loss:
             num_epochs += 1
 
-            training_loss = train(net, optimizer, criterion1, criterion2, train_loader, start_time)
-            validation_loss = test(net, optimizer, criterion1, criterion2, val_loader)
+            training_loss = train(args, net, criterion1, criterion2, optimizer, train_loader, start_time)
+            validation_loss = test(args, net, optimizer, criterion1, criterion2, val_loader)
 
-            print(f"Epoch {num_epochs} Train Loss: {training_loss}, Val Loss: {validation_loss}")
+            print(f"Epoch {epoch + num_epochs} Train Loss: {training_loss}, Val Loss: {validation_loss}")
 
-            if args.plot_loss:
-                loss_per_epoch.append(training_loss / len(train_loader))
+            # if args.plot_loss:
+            #     loss_per_epoch.append(training_loss / len(train_loader))
 
             if (training_loss / len(train_loader)) < min_loss and args.save:
                 min_loss = training_loss / len(train_loader)
-                torch.save(net.state_dict(), args.save_path + f"_{str(epoch)}_{str(training_loss)}")
+                torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
 
             if num_epochs == 1 and validation_loss > training_loss:
                 training_loss = np.inf
                 validation_loss = np.inf
 
-        if args.plot_loss:
-            epochs = [i for i in range(epoch + 1)]
-            plot_loss(args, loss_per_epoch, epochs)
+        # if args.plot_loss:
+        #     epochs = [i for i in range(epoch + 1)]
+        #     plot_loss(args, loss_per_epoch, epochs)
         print("Finished Training!")
     ###########
 
     if args.validate:
-        net.load_state_dict(torch.load(args.load_path), strict=False)
-        test(val_loader)
+        # Load a model from disk
+        # if args.load is True:
+        #     checkpoint = torch.load(
+        #         args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
+        #     net.load_state_dict(checkpoint['model_state_dict'])
+        #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        #     net.eval()
+        #     print("Model Loaded!")
+
+        if args.load is True:
+            net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+
+        test(args, net, optimizer, criterion1, criterion2, val_loader, test_flag=False)
 
     if args.test:
-        test(test_loader)
+        # Load a model from disk
+        # if args.load is True:
+        #     checkpoint = torch.load(
+        #         args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
+        #     net.load_state_dict(checkpoint['model_state_dict'])
+        #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        #     net.eval()
+        #     print("Model Loaded!")
+
+        if args.load is True:
+            net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+
+        net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+        test(args, net, optimizer, criterion1, criterion2, test_loader, test_flag=True)
 
 
 if __name__ == "__main__":

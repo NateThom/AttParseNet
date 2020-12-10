@@ -76,7 +76,7 @@ def create_attribute_masks(input_directory='OpenFace_not_detected_originals',
     image_names = sorted(os.listdir(input_directory))
 
     # Open the attribute label, landmark, and crop point csv files
-    annotations_df = pd.read_csv(annotations_path, sep='\s+', header=0, index_col="image_name")
+    annotations_df = pd.read_csv(annotations_path, sep=',', header=0, index_col="image_name")
     landmarks_df = pd.read_csv(landmarks_path, index_col='image_name')
     crop_points_df = pd.read_csv(path_to_crop_points, index_col=0)
 
@@ -99,15 +99,14 @@ def create_attribute_masks(input_directory='OpenFace_not_detected_originals',
 
         # Ensure that the resulting image is of the correct size
         #      The image will have minimum dimensions of 179x219
-        if (cropped_image.shape[1] <= 178):
-            scale_factor = (179 / cropped_image.shape[1])
+        if (cropped_image.shape[0] <= 178):
+            scale_factor = (179 / cropped_image.shape[0])
             resized_dim = (round(cropped_image.shape[1] * scale_factor), round(cropped_image.shape[0] * scale_factor))
-            cropped_image = cv2.resize(cropped_image, resized_dim)
-        if (cropped_image.shape[0] <= 218):
-            scale_factor = (219 / cropped_image.shape[0])
+            cropped_image = cv2.resize(cropped_image, resized_dim, interpolation=cv2.INTER_AREA)
+        if (cropped_image.shape[1] <= 218):
+            scale_factor = (219 / cropped_image.shape[1])
             resized_dim = (round(cropped_image.shape[1] * scale_factor), round(cropped_image.shape[0] * scale_factor))
-            cropped_image = cv2.resize(cropped_image, resized_dim)
-
+            cropped_image = cv2.resize(cropped_image, resized_dim, interpolation=cv2.INTER_AREA)
         # Store the complete output path for the resized image
         image_resized_path = os.path.join(output_directory_2, image_name)
 
@@ -125,14 +124,14 @@ def create_attribute_masks(input_directory='OpenFace_not_detected_originals',
             # Crop the mask image
             cropped_mask = mask_image[y_min:y_max, x_min:x_max]
 
-            if (cropped_mask.shape[1] <= 178):
-                scale_factor = (179 / cropped_mask.shape[1])
+            if (cropped_mask.shape[0] <= 178):
+                scale_factor = (179 / cropped_mask.shape[0])
                 resized_dim = (round(cropped_mask.shape[1] * scale_factor), round(cropped_mask.shape[0] * scale_factor))
-                cropped_mask = cv2.resize(cropped_mask, resized_dim)
-            if (cropped_mask.shape[0] <= 218):
-                scale_factor = (219 / cropped_mask.shape[0])
+                cropped_mask = cv2.resize(cropped_mask, resized_dim, interpolation=cv2.INTER_NEAREST)
+            if (cropped_mask.shape[1] <= 218):
+                scale_factor = (219 / cropped_mask.shape[1])
                 resized_dim = (round(cropped_mask.shape[1] * scale_factor), round(cropped_mask.shape[0] * scale_factor))
-                cropped_mask = cv2.resize(cropped_mask, resized_dim)
+                cropped_mask = cv2.resize(cropped_mask, resized_dim, interpolation=cv2.INTER_NEAREST)
 
             # Store the full path to the mask output directory
             mask_name = attribute + '_mask_' + image_name
@@ -154,13 +153,13 @@ def create_attribute_masks(input_directory='OpenFace_not_detected_originals',
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-path_to_original_images = "/mnt/nvme0n1p1/facial_segmentation/img_celeba"
-path_to_output_segment_labels = "/mnt/nvme0n1p1/facial_segmentation/img_celeba_masks_resized"
-path_to_output_resized_images = "/mnt/nvme0n1p1/facial_segmentation/img_celeba_resized"
+path_to_original_images = "/home/nthom/Documents/datasets/CelebA/Img/img_celeba"
+path_to_output_segment_labels = "/home/nthom/Documents/datasets/CelebA/Img/segment_labels_178x218/"
+path_to_output_resized_images = "/home/nthom/Documents/datasets/CelebA/Img/resized_images_178x218/"
 
-path_to_landmark_csv = "/mnt/nvme0n1p1/facial_segmentation/complete_unaligned_landmarks.csv"
-path_to_crop_points_csv = "/mnt/nvme0n1p1/facial_segmentation/img_celeba_crop_points.csv"
-path_to_image_annotations = "/mnt/nvme0n1p1/facial_segmentation/list_attr_celeba.txt"
+path_to_landmark_csv = "/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/landmarks.csv"
+path_to_crop_points_csv = "/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/crop_points.csv"
+path_to_image_annotations = "/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/list_attr_celeba_attparsenet.csv"
 
 create_attribute_masks(path_to_original_images, path_to_output_segment_labels, path_to_output_resized_images,
                        path_to_landmark_csv,path_to_image_annotations, path_to_crop_points_csv)
