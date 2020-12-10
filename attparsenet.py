@@ -529,7 +529,7 @@ def main():
         dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (76, 96))]))
         net = AttParseNet()
     elif args.model == "vgg":
-        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (0, 0))]))
         net = models.vgg16()
     elif args.model == "moon":
         dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
@@ -633,7 +633,7 @@ def main():
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
