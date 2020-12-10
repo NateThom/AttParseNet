@@ -1,4 +1,4 @@
-import attparsenet_update_utils
+import attparsenet_utils
 import os
 import torch
 import time
@@ -21,7 +21,7 @@ from torchvision import transforms
 from PIL import Image
 
 # Get args from attparsenet_utils.py
-args = attparsenet_update_utils.get_args()
+args = attparsenet_utils.get_args()
 activation = None
 
 class AttParseNetRandomCrop(object):
