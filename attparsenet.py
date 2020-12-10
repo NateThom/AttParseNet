@@ -312,7 +312,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
            console=True, file=False, csv=False):
     ### TO FILE ###
     if file == True:
-        fout = open(args.metrics_output_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
+        fout = open(args.metrics_output_path + f"model_{args.model}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
         fout.write("{0:29} {1:13} {2:13} {3:13} {4:13} {5:13} {6:13}\n".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
                                                                         "Precision", "Recall", "F1"))
         fout.write('-' * 103)
@@ -368,7 +368,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
         output_preds.append(recall.tolist())
         output_preds.append(f1_score.tolist())
         output_preds_df = pd.DataFrame(output_preds)
-        output_preds_df.to_csv(args.metrics_csv_output_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
+        output_preds_df.to_csv(args.metrics_csv_output_path + f"model_{args.model}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
     ##############
 
 # Calculates a weight for each attribute in each sample such that batches are balanced to a target distribution
@@ -528,9 +528,10 @@ def main():
     if args.model == "attparsenet":
         dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (76, 96))]))
         net = AttParseNet()
-    elif args.model == "vgg":
-        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (0, 0))]))
+    elif args.model == "vgg16":
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (76, 96))]))
         net = models.vgg16()
+        net.classifier[6] = nn.Linear(4096, 40)
     elif args.model == "moon":
         dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
         net = models.vgg16()
@@ -633,7 +634,7 @@ def main():
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"model_{args.model}_{int(args.segment)}_segment_{int(args.balance)}_balance/epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
