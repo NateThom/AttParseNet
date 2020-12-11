@@ -312,7 +312,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
            console=True, file=False, csv=False):
     ### TO FILE ###
     if file == True:
-        fout = open(args.metrics_output_path + f"model_{args.model}_data_{args.image_path[41:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
+        fout = open(args.metrics_output_path + f"model_{args.model}_data_{args.image_path[42:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
         fout.write("{0:29} {1:13} {2:13} {3:13} {4:13} {5:13} {6:13}\n".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
                                                                         "Precision", "Recall", "F1"))
         fout.write('-' * 103)
@@ -368,7 +368,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
         output_preds.append(recall.tolist())
         output_preds.append(f1_score.tolist())
         output_preds_df = pd.DataFrame(output_preds)
-        output_preds_df.to_csv(args.metrics_csv_output_path + f"model_{args.model}_data_{args.image_path[41:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
+        output_preds_df.to_csv(args.metrics_csv_output_path + f"model_{args.model}_data_{args.image_path[42:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
     ##############
 
 # Calculates a weight for each attribute in each sample such that batches are balanced to a target distribution
@@ -533,13 +533,13 @@ def main():
         net = models.vgg16()
         net.classifier[6] = nn.Linear(4096, 40)
     elif args.model == "moon":
-        # dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
-        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (11, 13))]))
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
+        # dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (11, 13))]))
         net = models.vgg16()
-        net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        net.classifier[0] = nn.Linear(1960, 4096)
-        # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        # net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        # net.classifier[0] = nn.Linear(1960, 4096)
+        net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
         net.classifier[6] = nn.Linear(4096, 40)
 
         def get_activation():
@@ -547,7 +547,7 @@ def main():
                 global activation
                 activation = output.detach()
             return hook
-        net.features[28].register_forward_hook(get_activation())
+        net.features[14].register_forward_hook(get_activation())
 
     # Collect dataset and apply transformations
 
@@ -562,7 +562,7 @@ def main():
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    # train_indices = list(range(10))
+    train_indices = list(range(10))
     # val_indices = list(range(10))
 
     # if args.shuffle:
@@ -574,9 +574,9 @@ def main():
     val_set = Subset(dataset, val_indices)
     test_set = Subset(dataset, test_indices)
 
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # Compute number of parameters in the network
     pytorch_total_params = sum(p.numel() for p in net.parameters())
@@ -635,7 +635,7 @@ def main():
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"model_{args.model}_data_{args.image_path[41:]}_{int(args.segment)}_segment_{int(args.balance)}_balance/epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_seg_on_layer_14_data_{args.image_path[42:]}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
