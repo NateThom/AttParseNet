@@ -412,7 +412,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
     running_iteration_time = 0.0
 
     if args.model == "moon":
-        device = torch.device("cuda:1")
+        device = torch.device("cuda:0")
     else:
         device = torch.device("cuda")
     net.to(device)
@@ -533,13 +533,13 @@ def main():
         net = models.vgg16()
         net.classifier[6] = nn.Linear(4096, 40)
     elif args.model == "moon":
-        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
-        # dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (11, 13))]))
+        # dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
+        dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (11, 13))]))
         net = models.vgg16()
-        # net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        # net.classifier[0] = nn.Linear(1960, 4096)
-        net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        net.classifier[0] = nn.Linear(1960, 4096)
+        # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+        # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
         net.classifier[6] = nn.Linear(4096, 40)
 
         def get_activation():
@@ -547,7 +547,7 @@ def main():
                 global activation
                 activation = output.detach()
             return hook
-        net.features[14].register_forward_hook(get_activation())
+        net.features[28].register_forward_hook(get_activation())
 
     # Collect dataset and apply transformations
 
@@ -562,7 +562,7 @@ def main():
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    train_indices = list(range(10))
+    # train_indices = list(range(10))
     # val_indices = list(range(10))
 
     # if args.shuffle:
@@ -635,7 +635,7 @@ def main():
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_seg_on_layer_14_data_{args.image_path[42:]}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_path[42:]}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
