@@ -411,7 +411,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
     running_mse_loss = 0.0
     running_iteration_time = 0.0
 
-    if args.model == "moon":
+    if args.model == "moon" and args.segment == True:
         device = torch.device("cuda:0")
     else:
         device = torch.device("cuda")
@@ -536,18 +536,19 @@ def main():
         # dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (44, 54))]))
         dataset = AttParseNetDataset(args, transform=transforms.Compose([AttParseNetRandomCrop((178, 218), (11, 13))]))
         net = models.vgg16()
-        net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        net.classifier[0] = nn.Linear(1960, 4096)
-        # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
-        # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
         net.classifier[6] = nn.Linear(4096, 40)
+        if args.segment == True:
+            net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+            net.classifier[0] = nn.Linear(1960, 4096)
+            # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
+            # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
 
-        def get_activation():
-            def hook(model, input, output):
-                global activation
-                activation = output.detach()
-            return hook
-        net.features[28].register_forward_hook(get_activation())
+            def get_activation():
+                def hook(model, input, output):
+                    global activation
+                    activation = output.detach()
+                return hook
+            net.features[28].register_forward_hook(get_activation())
 
     # Collect dataset and apply transformations
 
@@ -574,9 +575,9 @@ def main():
     val_set = Subset(dataset, val_indices)
     test_set = Subset(dataset, test_indices)
 
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # Compute number of parameters in the network
     pytorch_total_params = sum(p.numel() for p in net.parameters())
