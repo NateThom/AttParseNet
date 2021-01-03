@@ -67,7 +67,7 @@ class AttParseNetRandomCrop(object):
         image = image.narrow(1, top[0], new_image_h)
         image = image.narrow(2, left[0], new_image_w)
 
-        if args.segment == True:
+        if args.segment == True and not ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
             masks = sample["masks"]
 
             # Copy the height and width from output size
@@ -114,7 +114,6 @@ class AttParseNetDataset(Dataset):
 
         # Get the paths to each of the input images
         self.input_filenames = pd.read_csv(args.attr_label_path, sep=',', skiprows=0, usecols=[0])
-
         # Get the paths to each of the segment label images (masks)
         self.mask_label_filenames = pd.read_csv(args.mask_label_path, sep=',', usecols=[n for n in range(2, 42)])
 
@@ -129,7 +128,7 @@ class AttParseNetDataset(Dataset):
             idx = idx.tolist()
 
         # Get full path to the current input image
-        img_name = os.path.join(self.args.image_path, self.input_filenames.iloc[idx, 0])
+        img_name = os.path.join(self.args.image_path, self.args.image_dir, self.input_filenames.iloc[idx, 0])
 
         # Read the image into memory, convert it to numpy, create a copy of it, and finally make the image a tensor
         # read_image = Image.open(img_name)
@@ -151,7 +150,7 @@ class AttParseNetDataset(Dataset):
         # Convert the labels to floats, I think that this was necessary for training
         attributes = torch.from_numpy(attributes).float()
 
-        if args.segment == False:
+        if args.segment == False or ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
             sample = {'image': image, 'attributes': attributes}
             if self.transform:
                 sample = self.transform(sample)
@@ -312,7 +311,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
            console=True, file=False, csv=False):
     ### TO FILE ###
     if file == True:
-        fout = open(args.metrics_output_path + f"model_{args.model}_data_{args.image_path[42:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.txt", "w+")
+        fout = open(args.metrics_output_path + f"model_{args.model}_data_{args.image_dir}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_file_{args.load_file}.txt", "w+")
         fout.write("{0:29} {1:13} {2:13} {3:13} {4:13} {5:13} {6:13}\n".format("\nAttributes", "Acc", "Acc_pos", "Acc_neg",
                                                                         "Precision", "Recall", "F1"))
         fout.write('-' * 103)
@@ -368,7 +367,7 @@ def output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg,
         output_preds.append(recall.tolist())
         output_preds.append(f1_score.tolist())
         output_preds_df = pd.DataFrame(output_preds)
-        output_preds_df.to_csv(args.metrics_csv_output_path + f"model_{args.model}_data_{args.image_path[42:]}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_model_{args.load_file[1:]}.csv", sep=',')
+        output_preds_df.to_csv(args.metrics_csv_output_path + f"model_{args.model}_data_{args.image_dir}_{int(args.segment)}_segment_{int(args.balance)}_balance_test_{test_flag}_file_{args.load_file}.csv", sep=',')
     ##############
 
 # Calculates a weight for each attribute in each sample such that batches are balanced to a target distribution
@@ -503,14 +502,9 @@ def test(args, net, optimizer, criterion1, criterion2, data_loader, test_flag):
 
         net.zero_grad()
 
-        if args.segment == True:
-            inputs, attribute_labels, mask_labels = sample_batched['image'], sample_batched['attributes'], sample_batched['masks']
-            inputs, attribute_labels, mask_labels = inputs.to(device), attribute_labels.to(device), mask_labels.to(device)
-            attribute_preds, mask_preds = net(inputs)
-        else:
-            inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
-            inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
-            attribute_preds = net(inputs)
+        inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
+        inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
+        attribute_preds = net(inputs)[0]
 
         # Uncomment the following line when computing metrics
         compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count)
@@ -540,6 +534,8 @@ def main():
         if args.segment == True:
             net.features[28] = nn.Conv2d(512, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
             net.classifier[0] = nn.Linear(1960, 4096)
+
+            # Comment above lines and uncomment bellow for seg on 14
             # net.features[14] = nn.Conv2d(256, 40, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
             # net.features[17] = nn.Conv2d(40, 512, kernel_size=(3, 3), stride=(1,1), padding=(1, 1))
 
@@ -605,8 +601,11 @@ def main():
     if args.train_by_num_epoch:
         # Load a model from disk
         if args.load is True:
+            temp_checkpoint = args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file
             checkpoint = torch.load(
-                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
+            # checkpoint = torch.jit.load(
+            #     args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
             net.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             epoch = checkpoint['epoch']
@@ -636,7 +635,7 @@ def main():
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_path[42:]}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_dir}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
@@ -692,33 +691,33 @@ def main():
 
     if args.validate:
         # Load a model from disk
-        # if args.load is True:
-        #     checkpoint = torch.load(
-        #         args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
-        #     net.load_state_dict(checkpoint['model_state_dict'])
-        #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        #     net.eval()
-        #     print("Model Loaded!")
-
         if args.load is True:
-            net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            net.eval()
+            print("Model Loaded!")
+
+        # if args.load is True:
+        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
 
         test(args, net, optimizer, criterion1, criterion2, val_loader, test_flag=False)
 
     if args.test:
         # Load a model from disk
-        # if args.load is True:
-        #     checkpoint = torch.load(
-        #         args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
-        #     net.load_state_dict(checkpoint['model_state_dict'])
-        #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        #     net.eval()
-        #     print("Model Loaded!")
-
         if args.load is True:
-            net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            net.eval()
+            print("Model Loaded!")
 
-        net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+        # if args.load is True:
+        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+
+        # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
         test(args, net, optimizer, criterion1, criterion2, test_loader, test_flag=True)
 
 

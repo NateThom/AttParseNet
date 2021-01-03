@@ -4,11 +4,22 @@ def get_args():
     parser = argparse.ArgumentParser(description='This script loads or trains the CNN.')
 
     parser.add_argument('--image_path',
-                        default='/home/nthom/Documents/datasets/CelebA/Img/resized_images_178x218',
+                        default='/home/nthom/Documents/datasets/CelebA/Img/',
+                        #default='/home/nthom/Documents/datasets/lfwa/',
+                        # default='/home/nthom/Documents/datasets/UMD-AED/',
                         help='Path to input data directory [/home/user/Documents/input_images/]')
+
+    parser.add_argument('--image_dir',
+                        default='resized_images_178x218',
+                        # default='resized_aligned_images_178x218',
+                        # default='lfw',
+                        # default='croppedImages',
+                        help='input_images')
 
     parser.add_argument('--attr_label_path',
                         default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/list_attr_celeba_attparsenet.csv',
+                        # default='/home/nthom/Documents/datasets/lfwa/lfwa_labels_full_paths.csv',
+                        # default='/home/nthom/Documents/datasets/UMD-AED/Files_attparsenet/list_attr_umdaed_reordered.csv',
                         help='Path to mapping between input images and binary attribute labels [/home/user/Documents/list_attr_celeba_attparsenet.csv]')
 
     parser.add_argument('--mask_image_path',
@@ -28,9 +39,9 @@ def get_args():
                         help='File for saving metrics in csv format [/home/user/Documents/metrics/metric.csv]')
 
     parser.add_argument('--model',
-                        default="attparsenet",
+                        # default="attparsenet",
                         # default="vgg16",
-                        # default="moon",
+                        default="moon",
                         help='Designates the model to be initialized [attparsenet]')
 
     parser.add_argument('--load',
@@ -42,7 +53,18 @@ def get_args():
                         help='File path for the model to load [/home/user/Document/models/]')
 
     parser.add_argument('--load_file',
-                        default='/epoch_9_loss_738.7768128812313',
+                        # Aligned Baseline
+                        # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_23_loss_478.588833168149',
+                        #AttParseNet
+                        # default='epoch_0_loss_812.8645853698254',
+                        #VGG 16
+                        # default='epoch_33_loss_1005.844871789217',
+                        # MOON
+                        # default='model_moon_data_resized_images_178x218_epoch_33_loss_333.0198631286621',
+                        # AttParseNet MOON
+                        # default='model_moon_data_resized_images_178x218_epoch_33_loss_774.3618328273296',
+                        # AttParseNet MOON Seg 14
+                        default='model_moon_seg_on_layer_14_data_resized_images_178x218_epoch_33_loss_803.7963633835316',
                         help='File name for the model to load [/model_to_load]')
 
     parser.add_argument('--save',
@@ -58,7 +80,7 @@ def get_args():
                         help='True for training by preset number of epochs')
 
     parser.add_argument('--train_epochs',
-                        default=24,
+                        default=34,
                         help='Number of training epochs [22]')
 
     parser.add_argument('--train_by_comparison_with_validation',
@@ -74,24 +96,39 @@ def get_args():
                         help='True for evaluation on the test set')
 
     parser.add_argument('--train_size',
-                        #default=1000,
+                        #lfwa and umd
+                        # default=0,
+                        #celeba
                         default=160000,
                         help='Number of samples in training set [162770]')
 
     parser.add_argument('--val_size',
+                        #lfwa and umd
+                        # default=0,
+                        #celaba
                         default=20000,
                         help='Number of samples in validation set [19867]')
 
     parser.add_argument('--test_size',
+                        #lfwa
+                        # default=13088,
+                        # umd
+                        # default=2808,
+                        #celeba
                         default=20000,
                         help='Number of samples in test set [19963]')
 
     parser.add_argument('--all_size',
+                        #lfwa
+                        # default=13088,
+                        # umd
+                        # default=2808,
+                        #celeba
                         default=200000,
                         help='Total Number of samples in the dataset [202600]')
 
     parser.add_argument('--balance',
-                        default=False,
+                        default=True,
                         help='Check the batch and reweight samples for balancing [True]')
 
     parser.add_argument('--segment',
@@ -107,11 +144,11 @@ def get_args():
                         help='Seed for random number generators [64]')
 
     parser.add_argument('--parallelize',
-                        default=True,
+                        default=False,
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=68,
+                        default=64,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',
