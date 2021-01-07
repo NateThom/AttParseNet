@@ -5,6 +5,7 @@ def get_args():
 
     parser.add_argument('--image_path',
                         default='/home/nthom/Documents/datasets/CelebA/Img/',
+                        # default='/home/nthom/Documents/datasets/CelebA/Img/partial_blackout/',
                         #default='/home/nthom/Documents/datasets/lfwa/',
                         # default='/home/nthom/Documents/datasets/UMD-AED/',
                         help='Path to input data directory [/home/user/Documents/input_images/]')
@@ -12,6 +13,7 @@ def get_args():
     parser.add_argument('--image_dir',
                         default='resized_images_178x218',
                         # default='resized_aligned_images_178x218',
+                        # default='resized_segment1',
                         # default='lfw',
                         # default='croppedImages',
                         help='input_images')
@@ -40,8 +42,8 @@ def get_args():
 
     parser.add_argument('--model',
                         # default="attparsenet",
-                        # default="vgg16",
-                        default="moon",
+                        default="vgg16",
+                        # default="moon",
                         help='Designates the model to be initialized [attparsenet]')
 
     parser.add_argument('--load',
@@ -57,14 +59,16 @@ def get_args():
                         # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_23_loss_478.588833168149',
                         #AttParseNet
                         # default='epoch_0_loss_812.8645853698254',
+                        default='model_attparsenet_data_resized_images_178x218_epoch_23_loss_4609.936356425285',
                         #VGG 16
                         # default='epoch_33_loss_1005.844871789217',
                         # MOON
                         # default='model_moon_data_resized_images_178x218_epoch_33_loss_333.0198631286621',
+                        # default='model_moon_data_resized_images_178x218_epoch_11_loss_529.5782991200686',
                         # AttParseNet MOON
                         # default='model_moon_data_resized_images_178x218_epoch_33_loss_774.3618328273296',
                         # AttParseNet MOON Seg 14
-                        default='model_moon_seg_on_layer_14_data_resized_images_178x218_epoch_33_loss_803.7963633835316',
+                        # default='model_moon_seg_on_layer_14_data_resized_images_178x218_epoch_33_loss_803.7963633835316',
                         help='File name for the model to load [/model_to_load]')
 
     parser.add_argument('--save',
@@ -128,7 +132,7 @@ def get_args():
                         help='Total Number of samples in the dataset [202600]')
 
     parser.add_argument('--balance',
-                        default=True,
+                        default=False,
                         help='Check the batch and reweight samples for balancing [True]')
 
     parser.add_argument('--segment',
@@ -136,7 +140,7 @@ def get_args():
                         help='Train with segmentation (mse) loss in addition to bce loss [True]')
 
     parser.add_argument('--shuffle',
-                        default=True,
+                        default=False,
                         help='Shuffle the order of training samples. Validation and Testing sets will not be shuffled [True]')
 
     parser.add_argument('--random_seed',
@@ -148,7 +152,7 @@ def get_args():
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=64,
+                        default=1,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',

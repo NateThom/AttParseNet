@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
@@ -26,7 +26,6 @@ activation = None
 
 class AttParseNetRandomCrop(object):
     """Crop randomly the image and masks in a sample. The masks are then resized to dimensions of 21x21
-
     Args:
         output_size (tuple or int): Desired output size. If int, square crop
             is made.
@@ -64,10 +63,10 @@ class AttParseNetRandomCrop(object):
         # left = np.random.randint(0, image_w - new_image_w)
 
         # Narrow (crop) the image
-        image = image.narrow(1, top[0], new_image_h)
-        image = image.narrow(2, left[0], new_image_w)
+        image1 = image.narrow(1, top[0], new_image_h)
+        image1 = image1.narrow(2, left[0], new_image_w)
 
-        if args.segment == True and not ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
+        if args.segment == True and args.train_by_num_epoch == True:
             masks = sample["masks"]
 
             # Copy the height and width from output size
@@ -82,10 +81,10 @@ class AttParseNetRandomCrop(object):
             for index, mask in enumerate(masks):
                 # Convert to numpy and resize
                 mask_np = mask.numpy()
-                mask_np = cv2.resize(mask_np, (self.mask_output_size[1], self.mask_output_size[0]))
+                mask_np = cv2.resize(mask_np, (self.mask_output_size[1], self.mask_output_size[0]), interpolation=0)
 
                 # Ensure that all pixel values are either 0 or 255
-                mask_np = (mask_np > 0).astype(np.uint8) * 255
+                # mask_np = (mask_np > 0).astype(np.uint8) * 255
 
                 # Convert back to tensor
                 mask_np = TF.to_tensor(mask_np)
@@ -97,9 +96,28 @@ class AttParseNetRandomCrop(object):
                     output_masks = torch.cat((mask_np, output_masks))
 
             # Return the randomly cropped image and masks, note that attributes were not transformed
-            return {'image': image, 'attributes': sample['attributes'], 'masks': output_masks}
+            return {'image': image1, 'attributes': sample['attributes'], 'masks': output_masks}
 
-        return {'image': image, 'attributes': sample['attributes']}
+        # if ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
+        #     top2 = torch.randint(0, image_h - new_image_h, (1,))
+        #     left2 = torch.randint(0, image_w - new_image_w, (1,))
+        #
+        #     top3 = torch.randint(0, image_h - new_image_h, (1,))
+        #     left3 = torch.randint(0, image_w - new_image_w, (1,))
+        #
+        #     image2 = image.narrow(1, top[0], new_image_h)
+        #     image2 = image2.narrow(2, left[0], new_image_w)
+        #
+        #     image3 = image.narrow(1, top[0], new_image_h)
+        #     image3 = image3.narrow(2, left[0], new_image_w)
+        #
+        #     image_1 = image1.shape
+        #     image_2 = image2.shape
+        #     image_3 = image3.shape
+        #
+        #     return {'image': image1, 'image2': image2, 'image3': image3, 'attributes': sample['attributes']}
+
+        return {'image': image1, 'attributes': sample['attributes']}
 
 
 class AttParseNetDataset(Dataset):
@@ -150,7 +168,22 @@ class AttParseNetDataset(Dataset):
         # Convert the labels to floats, I think that this was necessary for training
         attributes = torch.from_numpy(attributes).float()
 
-        if args.segment == False or ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
+        # if ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
+        #     sample = {'image': image, 'image2': image, 'image3': image, 'attributes': attributes}
+        #     if self.transform:
+        #         sample = self.transform(sample)
+        #
+        #     image_1 = sample['image'].shape
+        #     image_2 = sample['image2'].shape
+        #     image_3 = sample['image3'].shape
+        #     return sample
+        # elif args.segment == False or ((args.test == True or args.validate == True) and args.train_by_num_epoch == False):
+        #     sample = {'image': image, 'attributes': attributes}
+        #     if self.transform:
+        #         sample = self.transform(sample)
+        #     return sample
+
+        if args.segment == False or args.train_by_num_epoch == False:
             sample = {'image': image, 'attributes': attributes}
             if self.transform:
                 sample = self.transform(sample)
@@ -231,10 +264,11 @@ class AttParseNet(nn.Module):
         x = self.fc1(x)
         return x, x_maps
 
-def show_batch(batch, show_input=True, show_masks=True):
-    images_batch, attributes_batch, masks_batch = batch['image'], \
-                                                  batch['attributes'], \
-                                                  batch['masks']
+def show_batch(batch, show_input=True, show_masks=False):
+    if args.segment == False or args.train_by_num_epoch == False:
+        images_batch, attributes_batch = batch['image'], batch['attributes']
+    else:
+        images_batch, attributes_batch, masks_batch = batch['image'], batch['attributes'], batch['masks']
 
     ########## SHOW INPUT ##########
     if show_input:
@@ -244,28 +278,31 @@ def show_batch(batch, show_input=True, show_masks=True):
             # Note that there are two ways to view an image. Save the image and open it, or
             #      show the image while the program is running. Either uncomment imshow and waitKey
             #      or imwrite
-            # cv2.imshow("Input Image", image)
-            # cv2.waitKey(0)
-            cv2.imwrite(f"batch_image_{index}.png", image)
+            plt.imshow(image)
+            plt.show()
+            input("Press 'Enter' for next image.")
+            # cv2.imwrite(f"batch_image_{index}.png", image)
 
     ########## SHOW MASKS ##########
-    if show_masks:
+    if show_masks and args.segment == True and args.train_by_num_epoch == True:
         for index1, masks in enumerate(masks_batch):
             for index2, image in enumerate(masks):
                 image = image.numpy()
                 # Note that there are two ways to view an image. Save the image and open it, or
                 #      show the image while the program is running. Either uncomment imshow and
                 #      waitKey or imwrite
-                # plt.imshow(image, cmap="gray")
-                # plt.show()
-                cv2.imwrite(f"batch_mask_{index1}_{index2}.png", image)
+                plt.imshow(image, cmap='Greys')
+                plt.show()
+                input("Press 'Enter' for next mask.")
+                print(index2)
+                # cv2.imwrite(f"batch_mask_{index1}_{index2}.png", image)
     ####################
 
 
 def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count):
     # We use the BCEWithLogits loss function, so the sigmoid needs to be applied before computing our metrics
-    attribute_preds = torch.sigmoid(attribute_preds)
-    attribute_preds = torch.round(attribute_preds)
+    # attribute_preds = torch.sigmoid(attribute_preds)
+    # attribute_preds = torch.round(attribute_preds)
 
     # Remove the predictions from GPU and move to CPU
     attribute_preds_cpu = attribute_preds.detach().to(torch.device("cpu"))
@@ -454,8 +491,8 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
 
         if args.segment == True:
             mse_loss = criterion2(mask_preds, mask_labels)
-            running_mse_loss += mse_loss.item()
-            loss = bce_loss + mse_loss
+            running_mse_loss += (mse_loss.item() * 8)
+            loss = bce_loss + (mse_loss * 8)
         else:
             running_mse_loss += 0
             loss = bce_loss
@@ -504,7 +541,20 @@ def test(args, net, optimizer, criterion1, criterion2, data_loader, test_flag):
 
         inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
         inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
+
+        # show_batch(sample_batched, show_input=True, show_masks=False)
+
         attribute_preds = net(inputs)[0]
+        attribute_preds = torch.sigmoid(attribute_preds)
+        attribute_preds = torch.round(attribute_preds)
+
+        # inputs1, inputs2, inputs3, attribute_labels = sample_batched['image'], sample_batched['image2'], sample_batched['image3'], sample_batched['attributes']
+        # inputs1, inputs2, inputs3, attribute_labels = inputs1.to(device), inputs2.to(device), inputs3.to(device), attribute_labels.to(device)
+        # attribute_preds1 = torch.round(torch.sigmoid(net(inputs1)[0]))
+        # attribute_preds2 = torch.round(torch.sigmoid(net(inputs2)[0]))
+        # attribute_preds3 = torch.round(torch.sigmoid(net(inputs3)[0]))
+        # attribute_preds = attribute_preds1 + attribute_preds2 + attribute_preds3
+        # attribute_preds = torch.ge(attribute_preds, 2).int()
 
         # Uncomment the following line when computing metrics
         compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count)
@@ -550,7 +600,7 @@ def main():
 
 
     # Establish train, validate, and test splits
-    if args.shuffle:
+    if args.shuffle and args.train_by_num_epoch:
         train_indices, val_indices, test_indices = (torch.randint(low=0, high=args.train_size, size=(args.train_size,)),
                                                     torch.randint(low=args.train_size, high=args.train_size + args.val_size, size=(args.val_size,)),
                                                     torch.randint(low=args.train_size + args.val_size, high=args.all_size, size=(args.test_size,)))
@@ -633,7 +683,7 @@ def main():
 
             torch.save({
                 'epoch': epoch + epoch_count,
-                'model_state_dict': net.state_dict(),
+                'model_state_dict': net.module.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
             }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_dir}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
 
@@ -689,7 +739,7 @@ def main():
         print("Finished Training!")
     ###########
 
-    if args.validate:
+    if args.validate and not args.train_by_num_epoch:
         # Load a model from disk
         if args.load is True:
             checkpoint = torch.load(
@@ -703,8 +753,10 @@ def main():
         #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
 
         test(args, net, optimizer, criterion1, criterion2, val_loader, test_flag=False)
+    else:
+        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
-    if args.test:
+    if args.test and not args.train_by_num_epoch:
         # Load a model from disk
         if args.load is True:
             checkpoint = torch.load(
@@ -719,6 +771,8 @@ def main():
 
         # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
         test(args, net, optimizer, criterion1, criterion2, test_loader, test_flag=True)
+    else:
+        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
 
 if __name__ == "__main__":
