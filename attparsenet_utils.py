@@ -41,8 +41,8 @@ def get_args():
                         help='File for saving metrics in csv format [/home/user/Documents/metrics/metric.csv]')
 
     parser.add_argument('--model',
-                        # default="attparsenet",
-                        default="vgg16",
+                        default="attparsenet",
+                        # default="vgg16",
                         # default="moon",
                         help='Designates the model to be initialized [attparsenet]')
 
@@ -84,7 +84,7 @@ def get_args():
                         help='True for training by preset number of epochs')
 
     parser.add_argument('--train_epochs',
-                        default=34,
+                        default=25,
                         help='Number of training epochs [22]')
 
     parser.add_argument('--train_by_comparison_with_validation',
@@ -94,6 +94,10 @@ def get_args():
     parser.add_argument('--validate',
                         default=False,
                         help='True for evaluation on the validation set')
+
+    parser.add_argument('--validating',
+                        default=False,
+                        help="Instruct the program on whether or not validation is occuring.")
 
     parser.add_argument('--test',
                         default=False,
@@ -140,7 +144,7 @@ def get_args():
                         help='Train with segmentation (mse) loss in addition to bce loss [True]')
 
     parser.add_argument('--shuffle',
-                        default=False,
+                        default=True,
                         help='Shuffle the order of training samples. Validation and Testing sets will not be shuffled [True]')
 
     parser.add_argument('--random_seed',
@@ -148,15 +152,15 @@ def get_args():
                         help='Seed for random number generators [64]')
 
     parser.add_argument('--parallelize',
-                        default=False,
+                        default=True,
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=1,
+                        default=64,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',
-                        default=0.001,
+                        default=0.1,
                         help='Learning rate [0.001]')
 
     parser.add_argument('--plot_loss',

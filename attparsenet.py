@@ -66,7 +66,7 @@ class AttParseNetRandomCrop(object):
         image1 = image.narrow(1, top[0], new_image_h)
         image1 = image1.narrow(2, left[0], new_image_w)
 
-        if args.segment == True and args.train_by_num_epoch == True:
+        if args.segment == True and args.validating == False:
             masks = sample["masks"]
 
             # Copy the height and width from output size
@@ -183,7 +183,7 @@ class AttParseNetDataset(Dataset):
         #         sample = self.transform(sample)
         #     return sample
 
-        if args.segment == False or args.train_by_num_epoch == False:
+        if args.segment == False or args.validating == True:
             sample = {'image': image, 'attributes': attributes}
             if self.transform:
                 sample = self.transform(sample)
@@ -505,7 +505,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
         running_total_loss += loss.item()
         running_iteration_time += time.time() - iteration_time
 
-        if iteration_index % 10 == 0:
+        if iteration_index % 1000 == 0:
             print(f"Iteration {iteration_index}")
             print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
             print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
@@ -516,53 +516,62 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
 
         # pd.DataFrame(attribute_preds.tolist()).to_csv(f"./preds/{iteration_index}.csv")
 
-    return running_total_loss
+    return running_total_loss/(iteration_index+1)
 
 
-def test(args, net, optimizer, criterion1, criterion2, data_loader, test_flag):
-    start_time = time.time()
-    output_preds = []
+def test(args, net, criterion1, data_loader, test_flag, compute_metrics_flag):
+    with torch.no_grad():
+        start_time = time.time()
+        args.validating = True
+        output_preds = []
 
-    true_pos_count = torch.zeros(40)
-    true_neg_count = torch.zeros(40)
-    false_pos_count = torch.zeros(40)
-    false_neg_count = torch.zeros(40)
+        avg_loss = 0
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net.to(device)
+        true_pos_count = torch.zeros(40)
+        true_neg_count = torch.zeros(40)
+        false_pos_count = torch.zeros(40)
+        false_neg_count = torch.zeros(40)
 
-    for progress_counter, sample_batched in enumerate(data_loader):
-        if test_flag:
-            print(f"Test Iteration: {progress_counter}")
-        else:
-            print(f"Validation Iteration: {progress_counter}")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        net.to(device)
 
-        net.zero_grad()
+        for progress_counter, sample_batched in enumerate(data_loader):
+            # if test_flag:
+            #     print(f"Test Iteration: {progress_counter}")
+            # else:
+            #     print(f"Validation Iteration: {progress_counter}")
 
-        inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
-        inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
+            net.zero_grad()
 
-        # show_batch(sample_batched, show_input=True, show_masks=False)
+            inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
+            inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
 
-        attribute_preds = net(inputs)[0]
-        attribute_preds = torch.sigmoid(attribute_preds)
-        attribute_preds = torch.round(attribute_preds)
+            # show_batch(sample_batched, show_input=True, show_masks=False)
 
-        # inputs1, inputs2, inputs3, attribute_labels = sample_batched['image'], sample_batched['image2'], sample_batched['image3'], sample_batched['attributes']
-        # inputs1, inputs2, inputs3, attribute_labels = inputs1.to(device), inputs2.to(device), inputs3.to(device), attribute_labels.to(device)
-        # attribute_preds1 = torch.round(torch.sigmoid(net(inputs1)[0]))
-        # attribute_preds2 = torch.round(torch.sigmoid(net(inputs2)[0]))
-        # attribute_preds3 = torch.round(torch.sigmoid(net(inputs3)[0]))
-        # attribute_preds = attribute_preds1 + attribute_preds2 + attribute_preds3
-        # attribute_preds = torch.ge(attribute_preds, 2).int()
+            attribute_preds = net(inputs)[0]
+            avg_loss += criterion1(attribute_preds, attribute_labels)
 
-        # Uncomment the following line when computing metrics
-        compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count)
+            attribute_preds = torch.sigmoid(attribute_preds)
+            attribute_preds = torch.round(attribute_preds)
 
-    precision, recall, f1, accuracy, accuracy_pos, accuracy_neg = compute_metrics(true_pos_count, true_neg_count,
-                                                                                  false_pos_count, false_neg_count)
+            # inputs1, inputs2, inputs3, attribute_labels = sample_batched['image'], sample_batched['image2'], sample_batched['image3'], sample_batched['attributes']
+            # inputs1, inputs2, inputs3, attribute_labels = inputs1.to(device), inputs2.to(device), inputs3.to(device), attribute_labels.to(device)
+            # attribute_preds1 = torch.round(torch.sigmoid(net(inputs1)[0]))
+            # attribute_preds2 = torch.round(torch.sigmoid(net(inputs2)[0]))
+            # attribute_preds3 = torch.round(torch.sigmoid(net(inputs3)[0]))
+            # attribute_preds = attribute_preds1 + attribute_preds2 + attribute_preds3
+            # attribute_preds = torch.ge(attribute_preds, 2).int()
 
-    output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall, f1, test_flag, csv=True, file=True, console=True)
+            # Uncomment the following line when computing metrics
+            if compute_metrics_flag:
+                compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count)
+        if compute_metrics_flag:
+            precision, recall, f1, accuracy, accuracy_pos, accuracy_neg = compute_metrics(true_pos_count, true_neg_count,
+                                                                                      false_pos_count, false_neg_count)
+            output(args, output_preds, start_time, accuracy, accuracy_pos, accuracy_neg, precision, recall, f1, test_flag, csv=True, file=True, console=True)
+
+        args.validating = False
+        return avg_loss/(progress_counter+1)
 
 def main():
     # # Get args from attparsenet_utils.py
@@ -631,6 +640,9 @@ def main():
     print(net)
     print(f"Total parameters in AttParseNet: {pytorch_total_params}")
 
+    device = torch.device("cuda")
+    net.to(device)
+
     if args.show_parameters:
         params = list(net.parameters())
         print(len(params))
@@ -645,17 +657,16 @@ def main():
     # Initialize loss functions and optimizer
     criterion1 = nn.BCEWithLogitsLoss()
     criterion2 = nn.MSELoss()
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    # optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=5, verbose=True)
 
     ########## TRAIN BY NUM EPOCH ##########
     if args.train_by_num_epoch:
         # Load a model from disk
         if args.load is True:
-            temp_checkpoint = args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file
             checkpoint = torch.load(
                 args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
-            # checkpoint = torch.jit.load(
-            #     args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
             net.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             epoch = checkpoint['epoch']
@@ -665,30 +676,66 @@ def main():
             epoch = 0
 
         start_time = time.time()
-        min_loss = np.inf
-
-        loss_per_epoch = []
 
         # Train for the number of epochs denoted in attparsenet_utils.py
         for epoch_count in tqdm(range(args.train_epochs)):
             # Store the total loss over the training epoch
-            epoch_loss = train(args, net, criterion1, criterion2, optimizer, train_loader, start_time)
-            print(f"Epoch {epoch + epoch_count} Loss: {epoch_loss}")
+            training_epoch_loss = train(args, net, criterion1, criterion2, optimizer, train_loader, start_time)
+            print(f"Training Epoch {epoch + epoch_count} Loss: {training_epoch_loss}")
 
-            # if (epoch_loss / len(train_loader)) < min_loss and args.save:
-            #     min_loss = epoch_loss / len(train_loader)
-            #     torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
+            avg_validation_loss = test(args, net, criterion1, val_loader, test_flag=False, compute_metrics_flag=False)
+            print(f"Validation Loss: {avg_validation_loss}")
 
-            # torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
+            scheduler.step(avg_validation_loss)
 
             torch.save({
                 'epoch': epoch + epoch_count,
                 'model_state_dict': net.module.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_dir}_epoch_{str(epoch+epoch_count)}_loss_{str(epoch_loss)}")
+            }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_dir}_epoch_{str(epoch+epoch_count)}_loss_{str(training_epoch_loss)}")
+
+            # if (epoch_loss / len(train_loader)) < min_loss and args.save:
+            #     min_loss = epoch_loss / len(train_loader)
+            #     torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
+            # torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/"+ f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
 
         print("Finished Training!")
     ##########
+
+    if args.validate and not args.train_by_num_epoch:
+        # Load a model from disk
+        if args.load is True:
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            net.eval()
+            print("Model Loaded!")
+
+        # if args.load is True:
+        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+
+        test(args, net, criterion1, val_loader, test_flag=False, compute_metrics_flag=True)
+    else:
+        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
+
+    if args.test and not args.train_by_num_epoch:
+        # Load a model from disk
+        if args.load is True:
+            checkpoint = torch.load(
+                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
+            net.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            net.eval()
+            print("Model Loaded!")
+
+        # if args.load is True:
+        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+
+        # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
+        test(args, net, criterion1, test_loader, test_flag=True, compute_metrics_flag=True)
+    else:
+        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
     ########## TRAIN BY COMP W/ VALIDATION ##########
     if args.train_by_comparison_with_validation:
@@ -738,41 +785,6 @@ def main():
         #     plot_loss(args, loss_per_epoch, epochs)
         print("Finished Training!")
     ###########
-
-    if args.validate and not args.train_by_num_epoch:
-        # Load a model from disk
-        if args.load is True:
-            checkpoint = torch.load(
-                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
-            net.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            net.eval()
-            print("Model Loaded!")
-
-        # if args.load is True:
-        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
-
-        test(args, net, optimizer, criterion1, criterion2, val_loader, test_flag=False)
-    else:
-        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
-
-    if args.test and not args.train_by_num_epoch:
-        # Load a model from disk
-        if args.load is True:
-            checkpoint = torch.load(
-                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
-            net.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            net.eval()
-            print("Model Loaded!")
-
-        # if args.load is True:
-        #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
-
-        # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
-        test(args, net, optimizer, criterion1, criterion2, test_loader, test_flag=True)
-    else:
-        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
 
 if __name__ == "__main__":
