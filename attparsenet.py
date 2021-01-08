@@ -618,8 +618,8 @@ def main():
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    # train_indices = list(range(10))
-    # val_indices = list(range(10))
+    train_indices = list(range(1000))
+    val_indices = list(range(1000))
 
     # if args.shuffle:
         # np.random.seed(args.random_seed)
@@ -690,7 +690,7 @@ def main():
 
             torch.save({
                 'epoch': epoch + epoch_count,
-                'model_state_dict': net.module.state_dict(),
+                'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
             }, args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/model_{args.model}_data_{args.image_dir}_epoch_{str(epoch+epoch_count)}_loss_{str(training_epoch_loss)}")
 
@@ -702,7 +702,7 @@ def main():
         print("Finished Training!")
     ##########
 
-    if args.validate and not args.train_by_num_epoch:
+    if args.validate:
         # Load a model from disk
         if args.load is True:
             checkpoint = torch.load(
@@ -716,10 +716,8 @@ def main():
         #     net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
 
         test(args, net, criterion1, val_loader, test_flag=False, compute_metrics_flag=True)
-    else:
-        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
-    if args.test and not args.train_by_num_epoch:
+    if args.test:
         # Load a model from disk
         if args.load is True:
             checkpoint = torch.load(
@@ -734,8 +732,6 @@ def main():
 
         # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
         test(args, net, criterion1, test_loader, test_flag=True, compute_metrics_flag=True)
-    else:
-        print("Cannot train and evaluate because of 3 random crop evaluation. Change args.")
 
     ########## TRAIN BY COMP W/ VALIDATION ##########
     if args.train_by_comparison_with_validation:
