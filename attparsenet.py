@@ -301,8 +301,8 @@ def show_batch(batch, show_input=True, show_masks=False):
 
 def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, true_neg_count, false_pos_count, false_neg_count):
     # We use the BCEWithLogits loss function, so the sigmoid needs to be applied before computing our metrics
-    # attribute_preds = torch.sigmoid(attribute_preds)
-    # attribute_preds = torch.round(attribute_preds)
+    attribute_preds = torch.sigmoid(attribute_preds)
+    attribute_preds = torch.round(attribute_preds)
 
     # Remove the predictions from GPU and move to CPU
     attribute_preds_cpu = attribute_preds.detach().to(torch.device("cpu"))
@@ -313,6 +313,21 @@ def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, tru
     attribute_positive_labels = torch.ge(attribute_labels_cpu, 1)
     attribute_negative_labels = torch.lt(attribute_positive_labels, 1)
 
+    print("__________")
+    print(attribute_preds)
+    print("**********")
+    print(attribute_labels)
+    print("__________")
+    print(attribute_positive_preds)
+    print("**********")
+    print(attribute_positive_labels)
+    print("_______."
+          "__")
+    print(attribute_negative_preds)
+    print("**********")
+    print(attribute_negative_labels)
+    print("__________")
+
     true_positive = torch.sum((attribute_positive_preds & attribute_positive_labels).int(), dim=0)
     false_positive = torch.sum((attribute_positive_preds & attribute_negative_labels).int(), dim=0)
     true_negative = torch.sum((attribute_negative_preds & attribute_negative_labels).int(), dim=0)
@@ -322,6 +337,7 @@ def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, tru
     true_neg_count += true_negative
     false_pos_count += false_positive
     false_neg_count += false_negative
+    print()
 
 # Computes total accuracy, accuracy of positive samples, accuracy of negative samples, precision, and recall of the
 # current batch
@@ -484,7 +500,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
         elif args.segment == True:
             attribute_preds, mask_preds = net(inputs)
         else:
-            attribute_preds = net(inputs)
+            attribute_preds = net(inputs)[0]
 
         # Compute loss for attribute prediction and segmentation separately, then add them together
         bce_loss = criterion1(attribute_preds, attribute_labels)
@@ -505,14 +521,14 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
         running_total_loss += loss.item()
         running_iteration_time += time.time() - iteration_time
 
-        if iteration_index % 1000 == 0:
-            print(f"Iteration {iteration_index}")
-            print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
-            print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
-            print(f"MSE loss: {running_mse_loss / (iteration_index + 1)}")
-            print(f"Iteration time: {time.time() - iteration_time}")
-            print(f"Average Iteration time: {running_iteration_time / (iteration_index + 1)}")
-            print(f"Total time: {time.time() - start_time} \n")
+        # if iteration_index % 100 == 0:
+        #     print(f"Iteration {iteration_index}")
+        #     print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
+        #     print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
+        #     print(f"MSE loss: {running_mse_loss / (iteration_index + 1)}")
+            # print(f"Iteration time: {time.time() - iteration_time}")
+            # print(f"Average Iteration time: {running_iteration_time / (iteration_index + 1)}")
+            # print(f"Total time: {time.time() - start_time} \n")
 
         # pd.DataFrame(attribute_preds.tolist()).to_csv(f"./preds/{iteration_index}.csv")
 
@@ -551,8 +567,8 @@ def test(args, net, criterion1, data_loader, test_flag, compute_metrics_flag):
             attribute_preds = net(inputs)[0]
             avg_loss += criterion1(attribute_preds, attribute_labels)
 
-            attribute_preds = torch.sigmoid(attribute_preds)
-            attribute_preds = torch.round(attribute_preds)
+            # attribute_preds = torch.sigmoid(attribute_preds)
+            # attribute_preds = torch.round(attribute_preds)
 
             # inputs1, inputs2, inputs3, attribute_labels = sample_batched['image'], sample_batched['image2'], sample_batched['image3'], sample_batched['attributes']
             # inputs1, inputs2, inputs3, attribute_labels = inputs1.to(device), inputs2.to(device), inputs3.to(device), attribute_labels.to(device)
@@ -618,7 +634,7 @@ def main():
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    train_indices = list(range(1000))
+    train_indices = list(range(5000))
     val_indices = list(range(1000))
 
     # if args.shuffle:

@@ -11,8 +11,8 @@ def get_args():
                         help='Path to input data directory [/home/user/Documents/input_images/]')
 
     parser.add_argument('--image_dir',
-                        default='resized_images_178x218',
-                        # default='resized_aligned_images_178x218',
+                        # default='resized_images_178x218',
+                        default='resized_aligned_images_178x218',
                         # default='resized_segment1',
                         # default='lfw',
                         # default='croppedImages',
@@ -47,7 +47,7 @@ def get_args():
                         help='Designates the model to be initialized [attparsenet]')
 
     parser.add_argument('--load',
-                        default=False,
+                        default=True,
                         help='True for loading a pretrained model, False otherwise [0]')
 
     parser.add_argument('--load_path',
@@ -57,9 +57,12 @@ def get_args():
     parser.add_argument('--load_file',
                         # Aligned Baseline
                         # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_23_loss_478.588833168149',
+                        default='model_attparsenet_data_resized_aligned_images_178x218_epoch_10_loss_0.3953212583065033',
+                        # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_16_loss_0.42979695172049104',
+                        # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_29_loss_0.43000704772770404',
                         #AttParseNet
                         # default='epoch_0_loss_812.8645853698254',
-                        default='model_attparsenet_data_resized_images_178x218_epoch_23_loss_4609.936356425285',
+                        # default='model_attparsenet_data_resized_images_178x218_epoch_23_loss_4609.936356425285',
                         #VGG 16
                         # default='epoch_33_loss_1005.844871789217',
                         # MOON
@@ -84,23 +87,25 @@ def get_args():
                         help='True for training by preset number of epochs')
 
     parser.add_argument('--train_epochs',
-                        default=25,
+                        default=20,
                         help='Number of training epochs [22]')
 
     parser.add_argument('--train_by_comparison_with_validation',
                         default=False,
                         help='True for training by comparison with loss on validation set')
 
-    parser.add_argument('--validate',
-                        default=False,
-                        help='True for evaluation on the validation set')
-
     parser.add_argument('--validating',
                         default=False,
                         help="Instruct the program on whether or not validation is occuring.")
 
+    parser.add_argument('--validate',
+                        # default=False,
+                        default=True,
+                        help='True for evaluation on the validation set')
+
     parser.add_argument('--test',
-                        default=False,
+                        # default=False,
+                        default=True,
                         help='True for evaluation on the test set')
 
     parser.add_argument('--train_size',
@@ -140,7 +145,7 @@ def get_args():
                         help='Check the batch and reweight samples for balancing [True]')
 
     parser.add_argument('--segment',
-                        default=True,
+                        default=False,
                         help='Train with segmentation (mse) loss in addition to bce loss [True]')
 
     parser.add_argument('--shuffle',
@@ -156,11 +161,11 @@ def get_args():
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=64,
+                        default=2,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',
-                        default=0.1,
+                        default=0.01,
                         help='Learning rate [0.001]')
 
     parser.add_argument('--plot_loss',
