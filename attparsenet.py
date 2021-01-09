@@ -637,8 +637,8 @@ def main():
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    train_indices = list(range(5000))
-    val_indices = list(range(1000))
+    # train_indices = list(range(5000))
+    # val_indices = list(range(1000))
 
     # if args.shuffle:
         # np.random.seed(args.random_seed)
@@ -688,7 +688,7 @@ def main():
                 args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + args.load_file)
             net.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            epoch = checkpoint['epoch']
+            epoch = checkpoint['epoch'] + 1
             net.train()
             print("Model Loaded!")
         else:
