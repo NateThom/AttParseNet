@@ -313,20 +313,20 @@ def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, tru
     attribute_positive_labels = torch.ge(attribute_labels_cpu, 1)
     attribute_negative_labels = torch.lt(attribute_positive_labels, 1)
 
-    print("__________")
-    print(attribute_preds)
-    print("**********")
-    print(attribute_labels)
-    print("__________")
-    print(attribute_positive_preds)
-    print("**********")
-    print(attribute_positive_labels)
-    print("_______."
-          "__")
-    print(attribute_negative_preds)
-    print("**********")
-    print(attribute_negative_labels)
-    print("__________")
+    # print("__________")
+    # print(attribute_preds)
+    # print("**********")
+    # print(attribute_labels)
+    # print("__________")
+    # print(attribute_positive_preds)
+    # print("**********")
+    # print(attribute_positive_labels)
+    # print("_______."
+    #       "__")
+    # print(attribute_negative_preds)
+    # print("**********")
+    # print(attribute_negative_labels)
+    # print("__________")
 
     true_positive = torch.sum((attribute_positive_preds & attribute_positive_labels).int(), dim=0)
     false_positive = torch.sum((attribute_positive_preds & attribute_negative_labels).int(), dim=0)
@@ -337,7 +337,6 @@ def compute_metric_counts(attribute_preds, attribute_labels, true_pos_count, tru
     true_neg_count += true_negative
     false_pos_count += false_positive
     false_neg_count += false_negative
-    print()
 
 # Computes total accuracy, accuracy of positive samples, accuracy of negative samples, precision, and recall of the
 # current batch
@@ -521,7 +520,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
         running_total_loss += loss.item()
         running_iteration_time += time.time() - iteration_time
 
-        # if iteration_index % 100 == 0:
+        # if iteration_index % 50 == 0:
         #     print(f"Iteration {iteration_index}")
         #     print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
         #     print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
@@ -531,6 +530,10 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
             # print(f"Total time: {time.time() - start_time} \n")
 
         # pd.DataFrame(attribute_preds.tolist()).to_csv(f"./preds/{iteration_index}.csv")
+
+    print(f"Total loss: {running_total_loss / (iteration_index + 1)}")
+    print(f"BCE loss: {running_bce_loss / (iteration_index + 1)}")
+    print(f"MSE loss: {running_mse_loss / (iteration_index + 1)}")
 
     return running_total_loss/(iteration_index+1)
 
@@ -675,7 +678,7 @@ def main():
     criterion2 = nn.MSELoss()
     # optimizer = optim.Adam(net.parameters(), lr=args.lr)
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=args.patience, verbose=True)
 
     ########## TRAIN BY NUM EPOCH ##########
     if args.train_by_num_epoch:
@@ -748,55 +751,6 @@ def main():
 
         # net.load_state_dict(torch.load(args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file), strict=False)
         test(args, net, criterion1, test_loader, test_flag=True, compute_metrics_flag=True)
-
-    ########## TRAIN BY COMP W/ VALIDATION ##########
-    if args.train_by_comparison_with_validation:
-        # Load a model from disk
-        if args.load is True:
-            checkpoint = torch.load(
-                args.load_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance" + args.load_file)
-            net.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            epoch = checkpoint['epoch']
-            net.train()
-            print("Model Loaded!")
-        else:
-            epoch = 0
-
-        start_time = time.time()
-        min_loss = np.inf
-
-        num_epochs = 0
-        loss_per_epoch = []
-
-        training_loss = np.inf
-        validation_loss = np.inf
-
-        # Continue training until the training loss is no longer greater than the validation loss
-        while training_loss >= validation_loss:
-            num_epochs += 1
-
-            training_loss = train(args, net, criterion1, criterion2, optimizer, train_loader, start_time)
-            validation_loss = test(args, net, optimizer, criterion1, criterion2, val_loader)
-
-            print(f"Epoch {epoch + num_epochs} Train Loss: {training_loss}, Val Loss: {validation_loss}")
-
-            # if args.plot_loss:
-            #     loss_per_epoch.append(training_loss / len(train_loader))
-
-            if (training_loss / len(train_loader)) < min_loss and args.save:
-                min_loss = training_loss / len(train_loader)
-                torch.save(net.state_dict(), args.save_path + f"{int(args.segment)}_segment_{int(args.balance)}_balance/" + f"epoch_{str(epoch)}_loss_{str(epoch_loss)}")
-
-            if num_epochs == 1 and validation_loss > training_loss:
-                training_loss = np.inf
-                validation_loss = np.inf
-
-        # if args.plot_loss:
-        #     epochs = [i for i in range(epoch + 1)]
-        #     plot_loss(args, loss_per_epoch, epochs)
-        print("Finished Training!")
-    ###########
 
 
 if __name__ == "__main__":
