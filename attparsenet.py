@@ -264,7 +264,7 @@ class AttParseNet(nn.Module):
         x = self.fc1(x)
         return x, x_maps
 
-def show_batch(batch, show_input=True, show_masks=False):
+def show_batch(batch, attribute_predictions, mask_predictions, show_input=True, show_masks=False):
     if args.segment == False or args.train_by_num_epoch == False:
         images_batch, attributes_batch = batch['image'], batch['attributes']
     else:
@@ -280,22 +280,47 @@ def show_batch(batch, show_input=True, show_masks=False):
             #      or imwrite
             plt.imshow(image)
             plt.show()
-            input("Press 'Enter' for next image.")
+            # input("Press 'Enter' for next image.")
             # cv2.imwrite(f"batch_image_{index}.png", image)
+
 
     ########## SHOW MASKS ##########
     if show_masks and args.segment == True and args.train_by_num_epoch == True:
         for index1, masks in enumerate(masks_batch):
             for index2, image in enumerate(masks):
                 image = image.numpy()
+                prediction = mask_predictions[index1][index2].detach().cpu().numpy()
                 # Note that there are two ways to view an image. Save the image and open it, or
                 #      show the image while the program is running. Either uncomment imshow and
                 #      waitKey or imwrite
-                plt.imshow(image, cmap='Greys')
-                plt.show()
-                input("Press 'Enter' for next mask.")
-                print(index2)
+                rows = 2
+                cols = 3
+                axes = []
+                fig = plt.figure()
+                fig.suptitle(f'Attribute: {args.attr_list[index2]}, Label: {bool(attributes_batch[index1][index2].detach())}, Prediction: {attribute_predictions[index1][index2].detach()}')
+                axes.append(fig.add_subplot(rows, cols, 2))
+                subplot_title = ("Input Image")
+                axes[-1].set_title(subplot_title)
+                plt.imshow(images_batch[index1].numpy().transpose(1, 2, 0))
+                axes.append(fig.add_subplot(rows, cols, 4))
+                subplot_title=("Label")
+                axes[-1].set_title(subplot_title)
+                plt.imshow(image)
+                axes.append(fig.add_subplot(rows, cols, 6))
+                subplot_title = ("Prediction")
+                axes[-1].set_title(subplot_title)
+                plt.imshow(prediction)
+                fig.tight_layout()
+                # plt.show()
+                plt.savefig(f"./feature_maps/img_{index1}_attribute_{args.attr_list[index2]}.png")
+                # input("Press 'Enter' for next figure")
+                # plt.imshow(image, cmap='Greys')
+                # plt.show()
+                # input("Press 'Enter' for mask prediction")
+                # plt.imshow(prediction)
+                # plt.show()
                 # cv2.imwrite(f"batch_mask_{index1}_{index2}.png", image)
+        input()
     ####################
 
 
@@ -481,8 +506,6 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
             inputs, attribute_labels = sample_batched['image'], sample_batched['attributes']
             inputs, attribute_labels = inputs.to(device), attribute_labels.to(device)
 
-        # show_batch(sample_batched, show_input=True, show_masks=True)
-
         # Generate batch balancing weights
         if args.balance == True:
             batch_weights = balance(args, target_distribution=0.5, data=attribute_labels)
@@ -500,6 +523,8 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
             attribute_preds, mask_preds = net(inputs)
         else:
             attribute_preds = net(inputs)[0]
+
+        # show_batch(sample_batched, torch.round(torch.sigmoid(attribute_preds)), mask_preds, show_input=True, show_masks=True)
 
         # Compute loss for attribute prediction and segmentation separately, then add them together
         bce_loss = criterion1(attribute_preds, attribute_labels)
