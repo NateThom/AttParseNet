@@ -288,8 +288,8 @@ def show_batch(batch, attribute_predictions, mask_predictions, show_input=True, 
     if show_masks and args.segment == True and args.train_by_num_epoch == True:
         for index1, masks in enumerate(masks_batch):
             for index2, image in enumerate(masks):
-                image = image.numpy()
-                prediction = mask_predictions[index1][index2].detach().cpu().numpy()
+                image = (image.numpy() * 255).astype(int)
+                prediction = (mask_predictions[index1][index2].detach().cpu().numpy() * 255).astype(int)
                 # Note that there are two ways to view an image. Save the image and open it, or
                 #      show the image while the program is running. Either uncomment imshow and
                 #      waitKey or imwrite
@@ -305,11 +305,11 @@ def show_batch(batch, attribute_predictions, mask_predictions, show_input=True, 
                 axes.append(fig.add_subplot(rows, cols, 4))
                 subplot_title=("Label")
                 axes[-1].set_title(subplot_title)
-                plt.imshow(image)
+                plt.imshow(image, cmap='Greys')
                 axes.append(fig.add_subplot(rows, cols, 6))
                 subplot_title = ("Prediction")
                 axes[-1].set_title(subplot_title)
-                plt.imshow(prediction)
+                plt.imshow(prediction, cmap="Greys")
                 fig.tight_layout()
                 # plt.show()
                 plt.savefig(f"./feature_maps/img_{index1}_attribute_{args.attr_list[index2]}.png")
@@ -524,7 +524,7 @@ def train(args, net, criterion1, criterion2, optimizer, data_loader, start_time)
         else:
             attribute_preds = net(inputs)[0]
 
-        # show_batch(sample_batched, torch.round(torch.sigmoid(attribute_preds)), mask_preds, show_input=True, show_masks=True)
+        show_batch(sample_batched, torch.round(torch.sigmoid(attribute_preds)), mask_preds, show_input=False, show_masks=True)
 
         # Compute loss for attribute prediction and segmentation separately, then add them together
         bce_loss = criterion1(attribute_preds, attribute_labels)
