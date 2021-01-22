@@ -24,6 +24,8 @@ from torch.utils.data import random_split
 from torchvision import transforms
 
 # wandb.init(project="attparsenet", entity="unr-mpl")
+
+# Base Model, Dataset, Batch Size, Learning Rate
 wandb_logger = WandbLogger(name='AttParseNet Unaligned 64 0.1', project='attparsenet', entity='unr-mpl')
 
 activation = None

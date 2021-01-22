@@ -41,17 +41,23 @@ class AttParseNet(pl.LightningModule):
 
         self.convolution = nn.Sequential(
             nn.Conv2d(3, 75, (7, 7)),
+            nn.BatchNorm2d(75),
             nn.ReLU(),
             nn.MaxPool2d((2, 2)),
             nn.Conv2d(75, 200, (3, 3)),
+            nn.BatchNorm2d(200),
             nn.ReLU(),
             nn.Conv2d(200, 300, (3, 3)),
+            nn.BatchNorm2d(300),
             nn.ReLU(),
             nn.Conv2d(300, 512, (3, 3)),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Conv2d(512, 512, (3, 3)),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.Conv2d(512, 40, (3, 3))
+            nn.Conv2d(512, 40, (3, 3)),
+            nn.BatchNorm2d(40)
         )
 
         self.fully_connected = nn.Sequential(
