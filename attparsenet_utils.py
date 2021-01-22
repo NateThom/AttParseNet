@@ -44,6 +44,7 @@ def get_args():
                         default="attparsenet",
                         # default="vgg16",
                         # default="moon",
+                        # default="resnet18",
                         help='Designates the model to be initialized [attparsenet]')
 
     parser.add_argument('--load',
@@ -57,11 +58,10 @@ def get_args():
 
     parser.add_argument('--load_file',
                         # Aligned Baseline
-                        # default='model_attparsenet_data_resized_aligned_images_178x218_epoch_29_loss_0.43000704772770404',
+                        default='model_attparsenet_data_resized_aligned_images_178x218_epoch_25_loss_0.19662243113294245',
                         #AttParseNet
-                        # default='model_attparsenet_data_resized_images_178x218_epoch_29_loss_0.7158902740478515',
-                        # default='model_attparsenet_data_resized_images_178x218_epoch_24_loss_0.7224752521514892',
-                        default='model_attparsenet_data_resized_images_178x218_epoch_26_loss_0.7413012397289276',
+                        # default='model_attparsenet_data_resized_images_178x218_epoch_73_loss_0.4962374998442829',
+                        # default='model_attparsenet_data_resized_images_178x218_epoch_96_loss_0.49512945536524056',
                         #VGG 16
                         # default='epoch_33_loss_1005.844871789217',
                         # MOON
@@ -86,11 +86,12 @@ def get_args():
                         help='True for training by preset number of epochs')
 
     parser.add_argument('--train_epochs',
-                        default=60,
+                        default=50,
                         help='Number of training epochs [22]')
 
-    parser.add_argument('--validating',
+    parser.add_argument('--evaluating',
                         default=False,
+                        # default=True,
                         help="Instruct the program on whether or not validation is occuring.")
 
     parser.add_argument('--validate',
@@ -135,6 +136,16 @@ def get_args():
                         default=200000,
                         help='Total Number of samples in the dataset [202600]')
 
+    parser.add_argument('--show_batch',
+                        default=False,
+                        # default=True,
+                        help='Show the batch input images and masks for debugging')
+
+    parser.add_argument('--repair_labels',
+                        # default=False,
+                        default=True,
+                        help='Show the batch input images and masks for debugging')
+
     parser.add_argument('--balance',
                         default=False,
                         help='Check the batch and reweight samples for balancing [True]')
@@ -145,6 +156,7 @@ def get_args():
                         help='Train with segmentation (mse) loss in addition to bce loss [True]')
 
     parser.add_argument('--shuffle',
+                        # default=False,
                         default=True,
                         help='Shuffle the order of training samples. Validation and Testing sets will not be shuffled [True]')
 
@@ -153,11 +165,12 @@ def get_args():
                         help='Seed for random number generators [64]')
 
     parser.add_argument('--parallelize',
+                        # default=False,
                         default=True,
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=50,
+                        default=64,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',
@@ -165,7 +178,7 @@ def get_args():
                         help='Learning rate [0.001]')
 
     parser.add_argument('--patience',
-                        default=3,
+                        default=5,
                         help='Learning Rate Scheduler Patience [5]')
 
     parser.add_argument('--plot_loss',
