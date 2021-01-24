@@ -27,7 +27,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 # wandb.init(project="attparsenet", entity="unr-mpl")
 
 # Base Model, Dataset, Batch Size, Learning Rate
-wandb_logger = WandbLogger(name='AttParseNet Unaligned 50 0.1 Mworks08', project='attparsenet', entity='unr-mpl')
+wandb_logger = WandbLogger(name='AttParseNet Unaligned 50 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
 
 activation = None
 
@@ -61,8 +61,8 @@ if __name__=="__main__":
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    train_indices = list(range(1000))
-    val_indices = list(range(1000))
+    # train_indices = list(range(100))
+    # val_indices = list(range(100))
 
     train_set = Subset(training_dataset, train_indices)
     val_set = Subset(evaluating_dataset, val_indices)
@@ -77,7 +77,7 @@ if __name__=="__main__":
     checkpoint_callback = ModelCheckpoint(
         monitor='Validation Loss_epoch',
         dirpath='/home/nthom/Documents/AttParseNet/checkpoints',
-        filename='AttParseNet_Unaligned_50_0.1_Mworks08-{epoch:02d}',
+        filename='AttParseNet_Unaligned_50_0.01_Mworks08-{epoch:02d}-{Validation Loss_epoch:.5f}',
         save_top_k=50,
         mode='min',
     )
