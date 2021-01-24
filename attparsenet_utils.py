@@ -170,7 +170,7 @@ def get_args():
                         help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
 
     parser.add_argument('--batch_size',
-                        default=50,
+                        default=40,
                         help='Batch size for images [32]')
 
     parser.add_argument('--lr',

@@ -100,9 +100,9 @@ class AttParseNet(pl.LightningModule):
         self.train_recall(attribute_preds, attribute_labels)
         self.train_f1(attribute_preds, attribute_labels)
 
-        self.log('Training Loss BCE', bce_loss, on_step=True, logger=True)
-        self.log('Training Loss MSE', mse_loss, on_step=True, logger=True)
-        self.log('Training Loss', loss, on_step=True, logger=True)
+        self.log('Training Loss BCE', bce_loss, on_step=True, on_epoch=True, logger=True)
+        self.log('Training Loss MSE', mse_loss, on_step=True, on_epoch=True, logger=True)
+        self.log('Training Loss', loss, on_step=True, on_epoch=True, logger=True)
 
         return loss
 
@@ -179,11 +179,11 @@ class AttParseNet(pl.LightningModule):
         self.valid_recall(attribute_preds, attribute_labels)
         self.valid_f1(attribute_preds, attribute_labels)
 
-        self.log('Validation Loss BCE', bce_loss, on_step=True, logger=True, sync_dist=True)
-        self.log('Validation Loss MSE', mse_loss, on_step=True, logger=True, sync_dist=True)
-        self.log('Validation Loss', loss, on_step=True, logger=True, sync_dist=True)
+        self.log('Validation Loss BCE', bce_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
+        self.log('Validation Loss MSE', mse_loss, on_step=True, on_epoch=True,  logger=True, sync_dist=True)
+        self.log('Validation Loss', loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
 
-        return loss
+        # return loss
 
     def validation_epoch_end(self, outputs):
         self.log("Validation Accuracy", self.valid_accuracy.compute(), logger=True)
