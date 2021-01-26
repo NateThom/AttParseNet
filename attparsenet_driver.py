@@ -27,14 +27,14 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 # wandb.init(project="attparsenet", entity="unr-mpl")
 
 # Base Model, Dataset, Batch Size, Learning Rate
-wandb_logger = WandbLogger(name='AttParseNet Unaligned 50 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
+wandb_logger = WandbLogger(name='AttParseNet Unaligned 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
 
 activation = None
 
 if __name__=="__main__":
     args = attparsenet_utils.get_args()
 
-    pl.seed_everything(64)
+    pl.seed_everything(2)
 
     # Initialize the model
     if args.model == "attparsenet":
@@ -53,7 +53,7 @@ if __name__=="__main__":
             ))
 
     if args.shuffle:
-        train_indices, val_indices, test_indices = (torch.randint(low=0, high=args.train_size, size=(args.train_size,)),
+        train_indices, val_indices, test_indices = (torch.randperm(args.train_size),
                                                     torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                     torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
     else:
@@ -61,15 +61,15 @@ if __name__=="__main__":
                                                    torch.tensor(list(range(args.train_size, args.train_size + args.val_size))),
                                                    torch.tensor(list(range(args.train_size + args.val_size, args.all_size))))
 
-    # train_indices = list(range(100))
-    # val_indices = list(range(100))
+    # train_indices = list(range(35000))
+    # val_indices = list(range(10000))
 
     train_set = Subset(training_dataset, train_indices)
     val_set = Subset(evaluating_dataset, val_indices)
     test_set = Subset(evaluating_dataset, test_indices)
 
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=12)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=12)
     test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
@@ -77,7 +77,7 @@ if __name__=="__main__":
     checkpoint_callback = ModelCheckpoint(
         monitor='Validation Loss_epoch',
         dirpath='/home/nthom/Documents/AttParseNet/checkpoints',
-        filename='AttParseNet_Unaligned_50_0.01_Mworks08-{epoch:02d}-{Validation Loss_epoch:.5f}',
+        filename='AttParseNet_Unaligned_40_0.01_Mworks08-{epoch:02d}-{Validation Loss_epoch:.05f}',
         save_top_k=50,
         mode='min',
     )
@@ -86,10 +86,12 @@ if __name__=="__main__":
         logger=wandb_logger,
         accelerator='ddp',
         precision=16,
+        # checkpoint_callback=False,
+        # checkpoint_callback=True,
         callbacks=[checkpoint_callback],
-        # auto_lr_find=True,
-        # auto_scale_batch_size=True,
-        checkpoint_callback=True,
+ #        val_check_interval=0.25,
+        limit_train_batches=1.0,
+        # limit_val_batches=0.05,
         gpus=2,
         max_epochs=args.train_epochs
     )
