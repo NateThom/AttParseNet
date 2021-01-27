@@ -1,7 +1,7 @@
 import argparse
 
 def get_args():
-    parser = argparse.ArgumentParser(description='This script loads or trains the CNN.')
+    parser = argparse.ArgumentParser()
 
     parser.add_argument('--image_path',
                         default='/home/nthom/Documents/datasets/CelebA/Img/',
@@ -42,9 +42,6 @@ def get_args():
 
     parser.add_argument('--model',
                         default="attparsenet",
-                        # default="vgg16",
-                        # default="moon",
-                        # default="resnet18",
                         help='Designates the model to be initialized [attparsenet]')
 
     parser.add_argument('--load',
@@ -53,23 +50,14 @@ def get_args():
                         help='True for loading a pretrained model, False otherwise [0]')
 
     parser.add_argument('--load_path',
-                        default='/home/nthom/Documents/attparsenet_data/models/',
+                        default='/home/nthom/Documents/AttParseNet/checkpoints/',
                         help='File path for the model to load [/home/user/Document/models/]')
 
     parser.add_argument('--load_file',
                         # Aligned Baseline
-                        default='model_attparsenet_data_resized_aligned_images_178x218_epoch_25_loss_0.19662243113294245',
+                        # default='',
                         #AttParseNet
-                        # default='model_attparsenet_data_resized_images_178x218_epoch_73_loss_0.4962374998442829',
-                        # default='model_attparsenet_data_resized_images_178x218_epoch_96_loss_0.49512945536524056',
-                        #VGG 16
-                        # default='epoch_33_loss_1005.844871789217',
-                        # MOON
-                        # default='model_moon_data_resized_images_178x218_epoch_33_loss_333.0198631286621',
-                        # AttParseNet MOON
-                        # default='model_moon_data_resized_images_178x218_epoch_33_loss_774.3618328273296',
-                        # AttParseNet MOON Seg 14
-                        # default='model_moon_seg_on_layer_14_data_resized_images_178x218_epoch_33_loss_803.7963633835316',
+                        default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=00-Validation Loss=0.38668.ckpt',
                         help='File name for the model to load [/model_to_load]')
 
     parser.add_argument('--save',
@@ -77,32 +65,12 @@ def get_args():
                         help='True for saving the model, False otherwise [True]')
 
     parser.add_argument('--save_path',
-                        default='/home/nthom/Documents/attparsenet_data/models/',
+                        default='/home/nthom/Documents/AttParseNet/checkpoints',
                         help='Dir for saving models [./saved_models/]')
-
-    parser.add_argument('--train_by_num_epoch',
-                        # default=False,
-                        default=True,
-                        help='True for training by preset number of epochs')
 
     parser.add_argument('--train_epochs',
                         default=50,
                         help='Number of training epochs [22]')
-
-    parser.add_argument('--evaluating',
-                        default=False,
-                        # default=True,
-                        help="Instruct the program on whether or not validation is occuring.")
-
-    parser.add_argument('--validate',
-                        default=False,
-                        # default=True,
-                        help='True for evaluation on the validation set')
-
-    parser.add_argument('--test',
-                        default=False,
-                        # default=True,
-                        help='True for evaluation on the test set')
 
     parser.add_argument('--train_size',
                         #lfwa and umd
@@ -146,10 +114,6 @@ def get_args():
                         default=True,
                         help='Show the batch input images and masks for debugging')
 
-    parser.add_argument('--balance',
-                        default=False,
-                        help='Check the batch and reweight samples for balancing [True]')
-
     parser.add_argument('--segment',
                         # default=False,
                         default=True,
@@ -164,11 +128,6 @@ def get_args():
                         default=64,
                         help='Seed for random number generators [64]')
 
-    parser.add_argument('--parallelize',
-                        # default=False,
-                        default=True,
-                        help='If True, parallelize the model across multiple devices (usually GPUs) [True]')
-
     parser.add_argument('--batch_size',
                         default=40,
                         help='Batch size for images [32]')
@@ -180,14 +139,6 @@ def get_args():
     parser.add_argument('--patience',
                         default=5,
                         help='Learning Rate Scheduler Patience [5]')
-
-    parser.add_argument('--plot_loss',
-                        default=False,
-                        help='If True, plot loss curve across all epochs [False]')
-
-    parser.add_argument('--show_parameters',
-                        default=False,
-                        help='If True, show network parameters [False]')
 
     parser.add_argument('--attr_list',
                         default=['5_o_Clock_Shadow', 'Arched_Eyebrows', 'Attractive',

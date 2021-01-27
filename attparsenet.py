@@ -11,20 +11,21 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 class AttParseNet(pl.LightningModule):
-    def __init__(self, args):
+    def __init__(self, hparams):
         super(AttParseNet, self).__init__()
 
-        assert isinstance(args.segment, (bool))
-        self.segment_flag = args.segment
-        assert isinstance(args.show_batch, (bool))
-        self.show_batch_flag = args.show_batch
-        assert isinstance(args.repair_labels, (bool))
-        self.repair_labels_flag = args.repair_labels
+        assert isinstance(hparams.segment, (bool))
+        self.segment_flag = hparams.segment
+        assert isinstance(hparams.show_batch, (bool))
+        self.show_batch_flag = hparams.show_batch
+        assert isinstance(hparams.repair_labels, (bool))
+        self.repair_labels_flag = hparams.repair_labels
+        assert isinstance(hparams.lr, (float))
+        self.lr = hparams.lr
+        assert isinstance(hparams.patience, (int))
+        self.patience = hparams.patience
 
-        assert isinstance(args.lr, (float))
-        self.lr = args.lr
-        assert isinstance(args.patience, (int))
-        self.patience = args.patience
+        self.save_hyperparameters()
 
         # self.learning_rate = learning_rate
 
@@ -62,23 +63,16 @@ class AttParseNet(pl.LightningModule):
             nn.Linear(40 * 96 * 76, 40)
         )
 
-    def num_flat_features(self, x):
-        size = x.size()[1:]  # all dimensions except the batch dimension
-        num_features = 1
-        for s in size:
-            num_features *= s
-        return num_features
-
     def forward(self, x):
-        self.feature_maps = self.convolution(x)
-        self.attributes = self.fully_connected(self.feature_maps.view(-1, self.num_flat_features(self.feature_maps)))
-        return self.attributes, self.feature_maps
+        feature_maps = self.convolution(x)
+        attributes = self.fully_connected(feature_maps.view(-1, self.num_flat_features(feature_maps)))
+        return attributes, feature_maps
 
     def training_step(self, train_batch, batch_idx):
         if self.segment_flag == False:
             inputs, attribute_labels = train_batch['image'], train_batch['attributes']
 
-            attribute_preds, mask_preds = self.forward(inputs)
+            attribute_preds, mask_preds = self(inputs)
 
             mse_loss = 0
             bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
@@ -87,16 +81,21 @@ class AttParseNet(pl.LightningModule):
         else:
             inputs, attribute_labels, mask_labels = train_batch['image'], train_batch['attributes'], train_batch['masks']
 
-            attribute_preds, mask_preds = self.forward(inputs)
+            attribute_preds, mask_preds = self(inputs)
 
             mse_loss = F.mse_loss(mask_preds, mask_labels, reduction='mean') * 8
             bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
             loss = bce_loss + mse_loss
 
-        self.train_accuracy(attribute_preds, attribute_labels)
-        self.train_precision(attribute_preds, attribute_labels)
-        self.train_recall(attribute_preds, attribute_labels)
-        self.train_f1(attribute_preds, attribute_labels)
+        # self.train_accuracy(attribute_preds, attribute_labels)
+        # self.train_precision(attribute_preds, attribute_labels)
+        # self.train_recall(attribute_preds, attribute_labels)
+        # self.train_f1(attribute_preds, attribute_labels)
+
+        self.log("Training Accuracy", self.train_accuracy.compute(), on_epoch=True, logger=True)
+        self.log("Training Precision", self.train_precision.compute(), on_epoch=True, logger=True)
+        self.log("Training Recall", self.train_recall.compute(), on_epoch=True, logger=True)
+        self.log("Training F1", self.train_f1.compute(), on_epoch=True, logger=True)
 
         self.log('Training Loss BCE', bce_loss, on_step=True, on_epoch=True, logger=True)
         self.log('Training Loss MSE', mse_loss, on_step=True, on_epoch=True, logger=True)
@@ -104,19 +103,11 @@ class AttParseNet(pl.LightningModule):
 
         return loss
 
-    def training_epoch_end(self, outputs):
-        self.log("Training Accuracy", self.train_accuracy.compute(), on_epoch=True, logger=True)
-        self.log("Training Precision", self.train_precision.compute(), on_epoch=True, logger=True)
-        self.log("Training Recall", self.train_recall.compute(), on_epoch=True, logger=True)
-        self.log("Training F1", self.train_f1.compute(), on_epoch=True, logger=True)
-
-    def configure_optimizers(self):
-        optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=0.0001)
-        lr_scheduler = {
-            'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=self.patience, verbose=False),
-            'monitor': 'Validation Loss'
-        }
-        return [optimizer], [lr_scheduler]
+    # def training_epoch_end(self, outputs):
+    #     self.log("Training Accuracy", self.train_accuracy.compute(), on_epoch=True, logger=True)
+    #     self.log("Training Precision", self.train_precision.compute(), on_epoch=True, logger=True)
+    #     self.log("Training Recall", self.train_recall.compute(), on_epoch=True, logger=True)
+    #     self.log("Training F1", self.train_f1.compute(), on_epoch=True, logger=True)
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
 
@@ -160,35 +151,6 @@ class AttParseNet(pl.LightningModule):
                         plt.show()
                     input("Press 'Enter' for next sample's masks.")
 
-            input("Here")
-
-    def validation_step(self, val_batch, batch_idx):
-        self.evaluating_flag = True
-        inputs, attribute_labels = val_batch['image'], val_batch['attributes']
-        attribute_preds, mask_preds = self.forward(inputs)
-
-        mse_loss = 0
-        bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
-
-        loss = bce_loss
-
-        self.valid_accuracy(attribute_preds, attribute_labels)
-        self.valid_precision(attribute_preds, attribute_labels)
-        self.valid_recall(attribute_preds, attribute_labels)
-        self.valid_f1(attribute_preds, attribute_labels)
-
-        self.log('Validation Loss BCE', bce_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
-        self.log('Validation Loss MSE', mse_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
-        self.log('Validation Loss', loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
-
-        # return loss
-
-    def validation_epoch_end(self, outputs):
-        self.log("Validation Accuracy", self.valid_accuracy.compute(), on_epoch=True, logger=True)
-        self.log("Validation Precision", self.valid_precision.compute(), on_epoch=True, logger=True)
-        self.log("Validation Recall", self.valid_recall.compute(), on_epoch=True, logger=True)
-        self.log("Validation F1", self.valid_f1.compute(), on_epoch=True, logger=True)
-
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         if self.show_batch_flag == True:
             if self.segment_flag == True:
@@ -222,3 +184,48 @@ class AttParseNet(pl.LightningModule):
                             mask_prediction = (outputs)
 
                         input("Press 'Enter' for next sample's masks.")
+
+    def validation_step(self, val_batch, batch_idx):
+        self.evaluating_flag = True
+        inputs, attribute_labels = val_batch['image'], val_batch['attributes']
+        attribute_preds, mask_preds = self(inputs)
+
+        mse_loss = 0
+        bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
+
+        loss = bce_loss
+
+        # self.valid_accuracy(attribute_preds, attribute_labels)
+        # self.valid_precision(attribute_preds, attribute_labels)
+        # self.valid_recall(attribute_preds, attribute_labels)
+        # self.valid_f1(attribute_preds, attribute_labels)
+
+        self.log("Validation Accuracy", self.valid_accuracy.compute(), on_epoch=True, logger=True)
+        self.log("Validation Precision", self.valid_precision.compute(), on_epoch=True, logger=True)
+        self.log("Validation Recall", self.valid_recall.compute(), on_epoch=True, logger=True)
+        self.log("Validation F1", self.valid_f1.compute(), on_epoch=True, logger=True)
+
+        self.log('Validation Loss BCE', bce_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log('Validation Loss MSE', mse_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log('Validation Loss', loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+
+    # def validation_epoch_end(self, outputs):
+    #     self.log("Validation Accuracy", self.valid_accuracy.compute(), on_epoch=True, logger=True)
+    #     self.log("Validation Precision", self.valid_precision.compute(), on_epoch=True, logger=True)
+    #     self.log("Validation Recall", self.valid_recall.compute(), on_epoch=True, logger=True)
+    #     self.log("Validation F1", self.valid_f1.compute(), on_epoch=True, logger=True)
+
+    def configure_optimizers(self):
+        optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=0.0001)
+        lr_scheduler = {
+            'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=self.patience, verbose=False),
+            'monitor': 'Validation Loss'
+        }
+        return [optimizer], [lr_scheduler]
+
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
