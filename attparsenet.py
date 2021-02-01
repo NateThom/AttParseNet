@@ -33,10 +33,16 @@ class AttParseNet(pl.LightningModule):
         self.train_precision = pl.metrics.Precision(num_classes=40)
         self.train_recall = pl.metrics.Recall(num_classes=40)
         self.train_f1 = pl.metrics.F1(num_classes=40)
+
         self.valid_accuracy = pl.metrics.Accuracy()
         self.valid_precision = pl.metrics.Precision(num_classes=40)
         self.valid_recall = pl.metrics.Recall(num_classes=40)
         self.valid_f1 = pl.metrics.F1(num_classes=40)
+
+        self.test_accuracy = pl.metrics.Accuracy()
+        self.test_precision = pl.metrics.Precision(num_classes=40)
+        self.test_recall = pl.metrics.Recall(num_classes=40)
+        self.test_f1 = pl.metrics.F1(num_classes=40)
 
         self.convolution = nn.Sequential(
             nn.Conv2d(3, 75, (7, 7)),
@@ -92,10 +98,10 @@ class AttParseNet(pl.LightningModule):
         # self.train_recall(attribute_preds, attribute_labels)
         # self.train_f1(attribute_preds, attribute_labels)
 
-        self.log("Training Accuracy", self.train_accuracy.compute(), on_epoch=True, logger=True)
-        self.log("Training Precision", self.train_precision.compute(), on_epoch=True, logger=True)
-        self.log("Training Recall", self.train_recall.compute(), on_epoch=True, logger=True)
-        self.log("Training F1", self.train_f1.compute(), on_epoch=True, logger=True)
+        self.log("Training Accuracy", self.train_accuracy(attribute_preds, attribute_labels), on_step=True, on_epoch=True, logger=True)
+        self.log("Training Precision", self.train_precision(attribute_preds, attribute_labels), on_step=True, on_epoch=True, logger=True)
+        self.log("Training Recall", self.train_recall(attribute_preds, attribute_labels), on_step=True, on_epoch=True, logger=True)
+        self.log("Training F1", self.train_f1(attribute_preds, attribute_labels), on_step=True, on_epoch=True, logger=True)
 
         self.log('Training Loss BCE', bce_loss, on_step=True, on_epoch=True, logger=True)
         self.log('Training Loss MSE', mse_loss, on_step=True, on_epoch=True, logger=True)
@@ -200,10 +206,10 @@ class AttParseNet(pl.LightningModule):
         # self.valid_recall(attribute_preds, attribute_labels)
         # self.valid_f1(attribute_preds, attribute_labels)
 
-        self.log("Validation Accuracy", self.valid_accuracy.compute(), on_epoch=True, logger=True)
-        self.log("Validation Precision", self.valid_precision.compute(), on_epoch=True, logger=True)
-        self.log("Validation Recall", self.valid_recall.compute(), on_epoch=True, logger=True)
-        self.log("Validation F1", self.valid_f1.compute(), on_epoch=True, logger=True)
+        self.log("Validation Accuracy", self.valid_accuracy(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Validation Precision", self.valid_precision(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Validation Recall", self.valid_recall(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Validation F1", self.valid_f1(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
 
         self.log('Validation Loss BCE', bce_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
         self.log('Validation Loss MSE', mse_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
@@ -215,12 +221,45 @@ class AttParseNet(pl.LightningModule):
     #     self.log("Validation Recall", self.valid_recall.compute(), on_epoch=True, logger=True)
     #     self.log("Validation F1", self.valid_f1.compute(), on_epoch=True, logger=True)
 
+    def test_step(self, test_batch, batch_idx):
+        self.evaluating_flag = True
+        inputs, attribute_labels = test_batch['image'], test_batch['attributes']
+        attribute_preds, mask_preds = self(inputs)
+
+        mse_loss = 0
+        bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
+
+        loss = bce_loss
+
+        self.log("Test Accuracy", self.test_accuracy(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Test Precision", self.test_precision(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Test Recall", self.test_recall(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log("Test F1", self.test_f1(attribute_preds, attribute_labels), on_step=True, on_epoch=True, sync_dist=True, logger=True)
+
+        # self.test_accuracy(attribute_preds, attribute_labels)
+        # self.test_precision(attribute_preds, attribute_labels)
+        # self.test_recall(attribute_preds, attribute_labels)
+        # self.test_f1(attribute_preds, attribute_labels)
+
+        self.log('Test Loss BCE', bce_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log('Test Loss MSE', mse_loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+        self.log('Test Loss', loss, on_step=True, on_epoch=True, sync_dist=True, logger=True)
+
+    # def test_epoch_end(self, outputs):
+    #     self.log("Test Accuracy", self.test_accuracy.compute(), logger=True)
+    #     self.log("Test Precision", self.test_precision.compute(), logger=True)
+    #     self.log("Test Recall", self.test_recall.compute(), logger=True)
+    #     self.log("Test F1", self.test_f1.compute(), logger=True)
+
     def configure_optimizers(self):
         optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=0.9, weight_decay=0.0001)
+        lmbda = lambda epoch: 0.9
         lr_scheduler = {
-            'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=self.patience, verbose=False),
-            'monitor': 'Validation Loss'
+            # 'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=.5, patience=self.patience, verbose=False),
+            # 'monitor': 'Validation Loss'
+            'scheduler': optim.lr_scheduler.MultiplicativeLR(optimizer=optimizer, lr_lambda=lmbda, last_epoch=-1, verbose=False),
         }
+
         return [optimizer], [lr_scheduler]
 
     def num_flat_features(self, x):

@@ -4,6 +4,7 @@ import attparsenet_utils
 import attparsenet
 import attparsenet_dataset
 import attparsenet_random_crop
+import attparsenet_random_horizontal_flip
 
 import numpy as np
 import pandas as pd
@@ -25,7 +26,7 @@ from torchvision import transforms
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 # Base Model, Dataset, Batch Size, Learning Rate
-wandb_logger = WandbLogger(name='AttParseNet Unaligned 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
+wandb_logger = WandbLogger(name='AttParseNet Unaligned Mult hflip 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
 
 activation = None
 
@@ -45,13 +46,15 @@ if __name__=="__main__":
         training_dataset = attparsenet_dataset.AttParseNetDataset(
             args.segment, False, args.image_path, args.image_dir, args.mask_image_path, args.attr_label_path,
             args.mask_label_path, transform=transforms.Compose(
-                [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, False)]
+                [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, False),
+                 attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, False)]
             ))
 
         evaluating_dataset = attparsenet_dataset.AttParseNetDataset(
             args.segment, True, args.image_path, args.image_dir, args.mask_image_path, args.attr_label_path,
             args.mask_label_path, transform=transforms.Compose(
-                [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, True)]
+                [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, True),
+                 attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, True)]
             ))
 
     if args.shuffle:
@@ -69,7 +72,7 @@ if __name__=="__main__":
 
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
     # lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
 
@@ -77,38 +80,36 @@ if __name__=="__main__":
         checkpoint_callback = ModelCheckpoint(
             monitor='Validation Loss',
             dirpath=args.save_path,
-            filename='AttParseNet_Unaligned_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
+            filename='AttParseNet_Unaligned_mult_hflip_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
             save_top_k=50,
             mode='min',
         )
 
         trainer = pl.Trainer(
             logger=wandb_logger,
-            # accelerator='ddp',
             precision=16,
-            # checkpoint_callback=False,
-            # checkpoint_callback=True,
             callbacks=[checkpoint_callback],
-            #        val_check_interval=0.25,
-            # limit_train_batches=0.22,
-            # limit_val_batches=0.22,
             gpus=1,
             max_epochs=args.train_epochs
         )
     else:
         trainer = pl.Trainer(
             logger=wandb_logger,
-            # accelerator='ddp',
             precision=16,
             checkpoint_callback=False,
-            #        val_check_interval=0.25,
-            # limit_train_batches=1.0,
-            # limit_val_batches=.05,
+            # accelerator='ddp',
             gpus=1,
+            # num_nodes=1,
+            # limit_train_batches=0.1,
             max_epochs=args.train_epochs
         )
 
-    # trainer.tune(net)
+    if args.train == True:
+        trainer.fit(net, train_loader, val_loader)
+        # trainer.fit(net, train_loader)
 
-    trainer.fit(net, train_loader, val_loader)
-    # trainer.fit(net, train_loader)
+    if args.val_only == True:
+        trainer.test(net, val_loader)
+
+    if args.test == True:
+        trainer.test(net, test_loader)

@@ -50,18 +50,20 @@ def get_args():
                         help='True for loading a pretrained model, False otherwise [0]')
 
     parser.add_argument('--load_path',
-                        default='/home/nthom/Documents/AttParseNet/checkpoints/',
+                        default='/home/nthom/Documents/AttParseNet/checkpoints/AttParseNet_Unaligned/',
                         help='File path for the model to load [/home/user/Document/models/]')
 
     parser.add_argument('--load_file',
                         # Aligned Baseline
                         # default='',
                         #AttParseNet
-                        default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=00-Validation Loss=0.38668.ckpt',
+                        # default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=25-Validation Loss=0.31651.ckpt',
+                        default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=49-Validation Loss=0.33161.ckpt',
                         help='File name for the model to load [/model_to_load]')
 
     parser.add_argument('--save',
                         default=True,
+                        # default=False,
                         help='True for saving the model, False otherwise [True]')
 
     parser.add_argument('--save_path',
@@ -103,6 +105,21 @@ def get_args():
                         #celeba
                         default=200000,
                         help='Total Number of samples in the dataset [202600]')
+
+    parser.add_argument('--train',
+                        # default=False,
+                        default=True,
+                        help='Train the model on the training set and evaluate on the validation set')
+
+    parser.add_argument('--val_only',
+                        default=False,
+                        # default=True,
+                        help='Evaluate the model on the validation set')
+
+    parser.add_argument('--test',
+                        default=False,
+                        # default=True,
+                        help='Evaluate the model on the test set')
 
     parser.add_argument('--show_batch',
                         default=False,
