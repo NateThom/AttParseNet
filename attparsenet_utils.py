@@ -13,7 +13,7 @@ def get_args():
     parser.add_argument('--image_dir',
                         default='resized_images_178x218',
                         # default='resized_aligned_images_178x218',
-                        # default='resized_segment1',
+                        # default='resized_segme*nt1',
                         # default='lfw',
                         # default='croppedImages',
                         help='input_images')
@@ -50,15 +50,17 @@ def get_args():
                         help='True for loading a pretrained model, False otherwise [0]')
 
     parser.add_argument('--load_path',
-                        default='/home/nthom/Documents/AttParseNet/checkpoints/AttParseNet_Unaligned/',
+                        default='/home/nthom/Documents/AttParseNet/checkpoints/',
                         help='File path for the model to load [/home/user/Document/models/]')
 
     parser.add_argument('--load_file',
                         # Aligned Baseline
-                        # default='',
+                        default='baseline_mult_hflip/Baseline_Aligned_mult_hflip_40_0.01_Mworks06-epoch=17-Validation Loss=0.21172.ckpt',
                         #AttParseNet
-                        # default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=25-Validation Loss=0.31651.ckpt',
-                        default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=49-Validation Loss=0.33161.ckpt',
+                        # default='AttParseNet_Unaligned_Mult/AttParseNet_Unaligned_mult_40_0.01_Mworks08-epoch=16-Validation Loss=0.30774.ckpt',
+                        # default='AttParseNet_Unaligned_40_0.01_Mworks08-epoch=49-Validation Loss=0.33161.ckpt',
+                        # default='AttParseNet_Mult_hflip/AttParseNet_Unaligned_mult_hflip_40_0.01_Mworks08-epoch=21-Validation Loss=0.33261.ckpt',
+                        # default='AttParseNet_Mult_hflip/AttParseNet_Unaligned_mult_hflip_40_0.01_Mworks08-epoch=22-Validation Loss=0.33261.ckpt',
                         help='File name for the model to load [/model_to_load]')
 
     parser.add_argument('--save',
@@ -120,6 +122,11 @@ def get_args():
                         default=False,
                         # default=True,
                         help='Evaluate the model on the test set')
+
+    parser.add_argument('--save_feature_maps',
+                        default=False,
+                        # default=True,
+                        help='Save all feature maps for data in either the test or val set')
 
     parser.add_argument('--show_batch',
                         default=False,

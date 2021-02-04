@@ -5,6 +5,7 @@ import attparsenet
 import attparsenet_dataset
 import attparsenet_random_crop
 import attparsenet_random_horizontal_flip
+import attparsenet_center_crop
 
 import numpy as np
 import pandas as pd
@@ -26,7 +27,7 @@ from torchvision import transforms
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 # Base Model, Dataset, Batch Size, Learning Rate
-wandb_logger = WandbLogger(name='AttParseNet Unaligned Mult hflip 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
+wandb_logger = WandbLogger(name='Experimental2 Unaligned Mult hflip 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
 
 activation = None
 
@@ -39,7 +40,7 @@ if __name__=="__main__":
     if args.model == "attparsenet":
 
         if args.load == True:
-            net = attparsenet.AttParseNet.load_from_checkpoint(args.load_path + args.load_file)
+            net = attparsenet.AttParseNet.load_from_checkpoint(args.load_path + args.load_file, hparams=args)
         else:
             net = attparsenet.AttParseNet(args)
 
@@ -56,6 +57,20 @@ if __name__=="__main__":
                 [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, True),
                  attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, True)]
             ))
+
+        # training_dataset = attparsenet_dataset.AttParseNetDataset(
+        #     args.segment, False, args.image_path, args.image_dir, args.mask_image_path, args.attr_label_path,
+        #     args.mask_label_path, transform=transforms.Compose(
+        #         [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, False),
+        #          attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, False)]
+        #     ))
+        #
+        # evaluating_dataset = attparsenet_dataset.AttParseNetDataset(
+        #     args.segment, True, args.image_path, args.image_dir, args.mask_image_path, args.attr_label_path,
+        #     args.mask_label_path, transform=transforms.Compose(
+        #         [attparsenet_center_crop.AttParseNetCenterCrop((178, 218), (76, 96), args.segment, True),
+        #          attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, True)]
+        #     ))
 
     if args.shuffle:
         train_indices, val_indices, test_indices = (torch.randperm(args.train_size),
@@ -80,7 +95,7 @@ if __name__=="__main__":
         checkpoint_callback = ModelCheckpoint(
             monitor='Validation Loss',
             dirpath=args.save_path,
-            filename='AttParseNet_Unaligned_mult_hflip_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
+            filename='Experimental2_Unaligned_mult_hflip_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
             save_top_k=50,
             mode='min',
         )
@@ -90,6 +105,7 @@ if __name__=="__main__":
             precision=16,
             callbacks=[checkpoint_callback],
             gpus=1,
+            # limit_train_batches=0.01,
             max_epochs=args.train_epochs
         )
     else:
@@ -100,7 +116,7 @@ if __name__=="__main__":
             # accelerator='ddp',
             gpus=1,
             # num_nodes=1,
-            # limit_train_batches=0.1,
+            # limit_train_batches=0.01,
             max_epochs=args.train_epochs
         )
 
