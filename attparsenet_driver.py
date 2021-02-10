@@ -86,9 +86,9 @@ if __name__=="__main__":
     val_set = Subset(evaluating_dataset, val_indices)
     test_set = Subset(evaluating_dataset, test_indices)
 
-    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=False, num_workers=12, pin_memory=True)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, num_workers=12, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=12, pin_memory=True)
 
     # lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
 

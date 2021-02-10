@@ -33,24 +33,24 @@ class AttParseNet(pl.LightningModule):
         # self.learning_rate = learning_rate
 
         self.train_accuracy = pl.metrics.Accuracy()
-        self.train_precision = pl.metrics.Precision(num_classes=40)
-        self.train_recall = pl.metrics.Recall(num_classes=40)
-        self.train_f1 = pl.metrics.F1(num_classes=40)
+        self.train_precision = pl.metrics.Precision(num_classes=5)
+        self.train_recall = pl.metrics.Recall(num_classes=5)
+        self.train_f1 = pl.metrics.F1(num_classes=5)
 
         self.valid_accuracy = pl.metrics.Accuracy()
-        self.valid_precision = pl.metrics.Precision(num_classes=40)
-        self.valid_recall = pl.metrics.Recall(num_classes=40)
-        self.valid_f1 = pl.metrics.F1(num_classes=40)
+        self.valid_precision = pl.metrics.Precision(num_classes=5)
+        self.valid_recall = pl.metrics.Recall(num_classes=5)
+        self.valid_f1 = pl.metrics.F1(num_classes=5)
 
         self.test_accuracy = pl.metrics.Accuracy()
-        self.test_precision = pl.metrics.Precision(num_classes=40)
-        self.test_recall = pl.metrics.Recall(num_classes=40)
-        self.test_f1 = pl.metrics.F1(num_classes=40)
+        self.test_precision = pl.metrics.Precision(num_classes=5)
+        self.test_recall = pl.metrics.Recall(num_classes=5)
+        self.test_f1 = pl.metrics.F1(num_classes=5)
 
-        self.true_pos_count = torch.zeros(40)
-        self.true_neg_count = torch.zeros(40)
-        self.false_pos_count = torch.zeros(40)
-        self.false_neg_count = torch.zeros(40)
+        self.true_pos_count = torch.zeros(5)
+        self.true_neg_count = torch.zeros(5)
+        self.false_pos_count = torch.zeros(5)
+        self.false_neg_count = torch.zeros(5)
 
         # self.convolution = nn.Sequential(
         #     nn.Conv2d(3, 75, (7, 7)),
