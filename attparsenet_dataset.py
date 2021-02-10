@@ -26,12 +26,14 @@ class AttParseNetDataset(Dataset):
         assert isinstance(mask_label_path, (str))
 
         # Read the binary attribute labels from the specified file
-        self.attr_labels = pd.read_csv(attr_label_path, sep=',', skiprows=0, usecols=[n for n in range(1, 41)])
+        # self.attr_labels = pd.read_csv(attr_label_path, sep=',', skiprows=0, usecols=[n for n in range(1, 41)])
+        self.attr_labels = pd.read_csv(attr_label_path, sep=',', skiprows=0, usecols=[n for n in range(1, 6)])
 
         # Get the paths to each of the input images
         self.input_filenames = pd.read_csv(attr_label_path, sep=',', skiprows=0, usecols=[0])
         # Get the paths to each of the segment label images (masks)
-        self.mask_label_filenames = pd.read_csv(mask_label_path, sep=',', usecols=[n for n in range(2, 42)])
+        # self.mask_label_filenames = pd.read_csv(mask_label_path, sep=',', usecols=[n for n in range(2, 42)])
+        self.mask_label_filenames = pd.read_csv(mask_label_path, sep=',', usecols=[n for n in range(2, 7)])
 
         # If there are any transform functions to be called, store them
         self.transform = transform

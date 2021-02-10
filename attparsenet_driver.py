@@ -27,7 +27,7 @@ from torchvision import transforms
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 # Base Model, Dataset, Batch Size, Learning Rate
-wandb_logger = WandbLogger(name='Experimental2 Unaligned Mult hflip 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
+wandb_logger = WandbLogger(name='Adjusted AttParseNet Unaligned Mult hflip 40 0.01 Mworks08', project='attparsenet', entity='unr-mpl')
 
 activation = None
 
@@ -55,7 +55,8 @@ if __name__=="__main__":
             args.segment, True, args.image_path, args.image_dir, args.mask_image_path, args.attr_label_path,
             args.mask_label_path, transform=transforms.Compose(
                 [attparsenet_random_crop.AttParseNetRandomCrop((178, 218), (76, 96), args.segment, True),
-                 attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, True)]
+                 # attparsenet_random_horizontal_flip.AttParseNetHorizontalFlip(args.segment, True)
+                 ]
             ))
 
         # training_dataset = attparsenet_dataset.AttParseNetDataset(
@@ -95,7 +96,7 @@ if __name__=="__main__":
         checkpoint_callback = ModelCheckpoint(
             monitor='Validation Loss',
             dirpath=args.save_path,
-            filename='Experimental2_Unaligned_mult_hflip_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
+            filename='Adjusted_AttParseNet_Unaligned_mult_hflip_40_0.01_Mworks08-{epoch:02d}-{Validation Loss:.05f}',
             save_top_k=50,
             mode='min',
         )

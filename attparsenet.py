@@ -77,38 +77,7 @@ class AttParseNet(pl.LightningModule):
         #     nn.Linear(40 * 96 * 76, 40)
         # )
 
-        self.convolution = nn.Sequential(
-            nn.Conv2d(3, 75, (7, 7)),
-            nn.BatchNorm2d(75),
-            nn.ReLU(),
-            nn.MaxPool2d((2, 2)),
-            nn.Conv2d(75, 200, (3, 3)),
-            nn.BatchNorm2d(200),
-            nn.ReLU(),
-            nn.Conv2d(200, 300, (3, 3)),
-            nn.BatchNorm2d(300),
-            nn.ReLU(),
-            nn.Conv2d(300, 512, (3, 3)),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, (3, 3)),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-        )
-
-        self.segment = nn.Sequential(
-            nn.Conv2d(512, 40, (3, 3)),
-            nn.BatchNorm2d(40)
-        )
-
-        self.attributes1 = nn.Sequential(
-            nn.Conv2d(512, 40, (3, 3)),
-            nn.BatchNorm2d(40)
-        )
-        self.attributes2 = nn.Sequential(
-            nn.Linear(40 * 96 * 76, 40)
-        )
-
+        # Experimental
         # self.convolution1 = nn.Sequential(
         #     nn.Conv2d(3, 75, (7, 7)),
         #     nn.BatchNorm2d(75),
@@ -139,19 +108,83 @@ class AttParseNet(pl.LightningModule):
         # self.fully_connected = nn.Sequential(
         #     nn.Linear(80 * 74 * 94, 40)
         # )
+        ##########
+
+        # Experimental 2
+        # self.convolution = nn.Sequential(
+        #     nn.Conv2d(3, 75, (7, 7)),
+        #     nn.BatchNorm2d(75),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d((2, 2)),
+        #     nn.Conv2d(75, 200, (3, 3)),
+        #     nn.BatchNorm2d(200),
+        #     nn.ReLU(),
+        #     nn.Conv2d(200, 300, (3, 3)),
+        #     nn.BatchNorm2d(300),
+        #     nn.ReLU(),
+        #     nn.Conv2d(300, 512, (3, 3)),
+        #     nn.BatchNorm2d(512),
+        #     nn.ReLU(),
+        #     nn.Conv2d(512, 512, (3, 3)),
+        #     nn.BatchNorm2d(512),
+        #     nn.ReLU(),
+        # )
+        #
+        # self.segment = nn.Sequential(
+        #     nn.Conv2d(512, 40, (3, 3)),
+        #     nn.BatchNorm2d(40)
+        # )
+        #
+        # self.attributes1 = nn.Sequential(
+        #     nn.Conv2d(512, 40, (3, 3)),
+        #     nn.BatchNorm2d(40)
+        # )
+        # self.attributes2 = nn.Sequential(
+        #     nn.Linear(40 * 96 * 76, 40)
+        # )
+        ##########
+
+        #Experimental 3
+        self.convolution = nn.Sequential(
+            nn.Conv2d(3, 75, (7, 7)),
+            nn.BatchNorm2d(75),
+            nn.ReLU(),
+            nn.MaxPool2d((2, 2)),
+            nn.Conv2d(75, 200, (3, 3)),
+            nn.BatchNorm2d(200),
+            nn.ReLU(),
+            nn.Conv2d(200, 300, (3, 3)),
+            nn.BatchNorm2d(300),
+            nn.ReLU(),
+            nn.Conv2d(300, 512, (3, 3)),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, (3, 3)),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            nn.Conv2d(512, 5, (3, 3)),
+            nn.BatchNorm2d(5)
+        )
+
+        self.fully_connected = nn.Sequential(
+            nn.Linear(5 * 96 * 76, 5)
+        )
+        ##########
 
     def forward(self, x):
-        # feature_maps = self.convolution(x)
-        # attributes = self.fully_connected(feature_maps.view(-1, self.num_flat_features(feature_maps)))
+        feature_maps = self.convolution(x)
+        attributes = self.fully_connected(feature_maps.view(-1, self.num_flat_features(feature_maps)))
 
+        # Experimental
         # feature_maps = self.convolution1(x)
         # conv2_feature_maps = self.convolution2(feature_maps)
         # attributes = self.fully_connected(conv2_feature_maps.view(-1, self.num_flat_features(conv2_feature_maps)))
 
-        part1 = self.convolution(x)
-        feature_maps = self.segment(part1)
-        attributes_branch = self.attributes1(part1)
-        attributes = self.attributes2(attributes_branch.view(-1, self.num_flat_features(attributes_branch)))
+        #Experimental 2
+        # part1 = self.convolution(x)
+        # feature_maps = self.segment(part1)
+        # attributes_branch = self.attributes1(part1)
+        # attributes = self.attributes2(attributes_branch.view(-1, self.num_flat_features(attributes_branch)))
 
         return attributes, feature_maps
 
@@ -170,7 +203,7 @@ class AttParseNet(pl.LightningModule):
 
             attribute_preds, mask_preds = self(inputs)
 
-            mse_loss = F.mse_loss(mask_preds, mask_labels, reduction='mean') * 16
+            mse_loss = F.mse_loss(mask_preds, mask_labels, reduction='mean') * 7
             bce_loss = F.binary_cross_entropy_with_logits(attribute_preds, attribute_labels, reduction='mean')
             loss = bce_loss + mse_loss
 

@@ -19,7 +19,8 @@ def get_args():
                         help='input_images')
 
     parser.add_argument('--attr_label_path',
-                        default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/list_attr_celeba_attparsenet.csv',
+                        # default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/list_attr_celeba_attparsenet.csv',
+                        default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/list_attr_celeba_attparsenet_adjusted.csv',
                         # default='/home/nthom/Documents/datasets/lfwa/lfwa_labels_full_paths.csv',
                         # default='/home/nthom/Documents/datasets/UMD-AED/Files_attparsenet/list_attr_umdaed_reordered.csv',
                         help='Path to mapping between input images and binary attribute labels [/home/user/Documents/list_attr_celeba_attparsenet.csv]')
@@ -29,7 +30,8 @@ def get_args():
                         help='Path to segment label data [/home/user/Documents/attribute_segment_labels/]')
 
     parser.add_argument('--mask_label_path',
-                        default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/segment_labels.csv',
+                        # default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/segment_labels.csv',
+                        default='/home/nthom/Documents/datasets/UNR_Facial_Attribute_Parsing_Dataset/segment_labels_adjusted.csv',
                         help='Path to mapping between input images and segment labels= [home/Documents/segment_labels.csv]')
 
     parser.add_argument('--metrics_output_path',
